@@ -1,14 +1,17 @@
 <?php
 /**
- * Multi-Receiver Control Interface
- * 
+ * DJ Zone - Multi-Receiver Control Interface
+ *
  * This page allows users to select multiple receivers via checkboxes
  * and change them all to a selected transmitter source.
- * It handles volume management similar to DJ.php
+ * It handles volume management with anti-popping measures.
+ *
+ * @author Seth Morrow
+ * @version 3.0 (Refactored)
  */
 
 require_once __DIR__ . '/config.php';
-require_once __DIR__ . '/utils.php';
+require_once dirname(__DIR__) . '/shared/utils.php';
 
 // Handle AJAX request for changing multiple receivers
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'change_receivers') {
@@ -122,8 +125,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-Receiver Control</title>
-    <link rel="stylesheet" href="styles.css">
+    <title>DJ Zone - Multi-Receiver Control</title>
+    <link rel="stylesheet" href="../shared/styles.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <style>
         /* Custom styles for multi-receiver control */

@@ -1,7 +1,13 @@
 <?php
 /**
- * Utility functions for AV Controls System
- * Updated to use DSP audio control endpoints
+ * Unified Utility Functions for AV Controls System
+ *
+ * This file consolidates all utility functions used across all zones.
+ * It includes basic receiver control functions as well as advanced
+ * DSP audio control functions for devices that support them.
+ *
+ * @author Seth Morrow
+ * @version 3.0 (Refactored)
  */
 
 // Set default values for configuration constants if they're not defined
@@ -18,9 +24,18 @@ if (!defined('ERROR_MESSAGES')) {
         'remote' => 'Unable to send remote command. Please try again.'
     ]);
 }
+if (!defined('VOLUME_CONTROL_MODELS')) {
+    define('VOLUME_CONTROL_MODELS', ['3G+4+ TX', '3G+AVP RX', '3G+AVP TX', '3G+WP4 TX', '2G/3G SX']);
+}
+
+// ============================================================================
+// RECEIVER FORM GENERATION
+// ============================================================================
 
 /**
- * Function to generate the HTML for all receiver forms
+ * Generate the HTML for all receiver forms
+ *
+ * @return string HTML for all receiver forms
  */
 function generateReceiverForms() {
     if (!defined('RECEIVERS')) {
@@ -40,8 +55,15 @@ function generateReceiverForms() {
 }
 
 /**
- * Function to generate a single receiver form
- * Updated to remove form tags and update button for instant controls
+ * Generate a single receiver form
+ *
+ * @param string $receiverName Display name for the receiver
+ * @param string $deviceIp IP address of the device
+ * @param int $minVolume Minimum volume level
+ * @param int $maxVolume Maximum volume level
+ * @param int $volumeStep Volume adjustment step
+ * @param bool $showPower Whether to show power controls
+ * @return string HTML for the receiver form
  */
 function generateReceiverForm($receiverName, $deviceIp, $minVolume, $maxVolume, $volumeStep, $showPower = true) {
     try {
@@ -50,10 +72,10 @@ function generateReceiverForm($receiverName, $deviceIp, $minVolume, $maxVolume, 
             throw new Exception("Unable to get current channel");
         }
         $supportsVolume = supportsVolumeControl($deviceIp);
-        
+
         $html = "<div class='receiver' data-ip='" . htmlspecialchars($deviceIp) . "'>";
         $html .= "<button type='button' class='receiver-title'>" . htmlspecialchars($receiverName) . "</button>";
-        
+
         // Generate channel selection dropdown
         $html .= "<label for='channel_" . htmlspecialchars($receiverName) . "'>Channel:</label>";
         $html .= "<select id='channel_" . htmlspecialchars($receiverName) . "' class='channel-select' data-ip='" . htmlspecialchars($deviceIp) . "'>";
@@ -64,7 +86,7 @@ function generateReceiverForm($receiverName, $deviceIp, $minVolume, $maxVolume, 
             }
         }
         $html .= "</select>";
-        
+
         // Generate volume control if supported
         if ($supportsVolume) {
             $currentVolume = getCurrentVolume($deviceIp);
@@ -75,7 +97,7 @@ function generateReceiverForm($receiverName, $deviceIp, $minVolume, $maxVolume, 
             $html .= "<input type='range' id='volume_" . htmlspecialchars($receiverName) . "' class='volume-slider' data-ip='" . htmlspecialchars($deviceIp) . "' min='$minVolume' max='$maxVolume' step='$volumeStep' value='$currentVolume'>";
             $html .= "<span class='volume-label'>$currentVolume</span>";
         }
-        
+
         // Add power buttons if enabled
         if ($showPower) {
             $html .= "<div class='power-buttons'>";
@@ -83,12 +105,11 @@ function generateReceiverForm($receiverName, $deviceIp, $minVolume, $maxVolume, 
             $html .= "<button type='button' class='power-off' onclick='sendPowerCommand(\"" . htmlspecialchars($deviceIp) . "\", \"cec_tv_off.sh\")'>Power Off</button>";
             $html .= "</div>";
         }
-        
+
         $html .= "</div>";
-        
+
         return $html;
     } catch (Exception $e) {
-        // Simple error card when device is unreachable
         return "<div class='receiver'>" .
                "<button type='button' class='receiver-title'>" . htmlspecialchars($receiverName) . "</button>" .
                "<p style='text-align: center; color: #ff6b6b; padding: 1rem;'>" .
@@ -97,19 +118,31 @@ function generateReceiverForm($receiverName, $deviceIp, $minVolume, $maxVolume, 
     }
 }
 
+// ============================================================================
+// API COMMUNICATION
+// ============================================================================
+
 /**
- * Function to make API calls to devices
+ * Make API calls to AV devices
+ *
+ * @param string $method HTTP method (GET, POST, etc.)
+ * @param string $deviceIp IP address of the device
+ * @param string $endpoint API endpoint path
+ * @param mixed $data Data to send (optional)
+ * @param string $contentType Content type header
+ * @return string API response
+ * @throws Exception on failure
  */
 function makeApiCall($method, $deviceIp, $endpoint, $data = null, $contentType = 'application/x-www-form-urlencoded') {
     $timeout = defined('API_TIMEOUT') ? API_TIMEOUT : 5;
-    
+
     $apiUrl = 'http://' . $deviceIp . '/cgi-bin/api/' . $endpoint;
     $ch = curl_init($apiUrl);
-    
+
     if ($ch === false) {
         throw new Exception('Failed to initialize cURL');
     }
-    
+
     try {
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -124,7 +157,7 @@ function makeApiCall($method, $deviceIp, $endpoint, $data = null, $contentType =
         }
 
         $result = curl_exec($ch);
-        
+
         if ($result === false) {
             throw new Exception('cURL error: ' . curl_error($ch));
         }
@@ -143,8 +176,12 @@ function makeApiCall($method, $deviceIp, $endpoint, $data = null, $contentType =
     }
 }
 
+// ============================================================================
+// VOLUME CONTROL
+// ============================================================================
+
 /**
- * Function to get current volume
+ * Get current volume level from device
  */
 function getCurrentVolume($deviceIp) {
     try {
@@ -158,21 +195,7 @@ function getCurrentVolume($deviceIp) {
 }
 
 /**
- * Function to get current channel
- */
-function getCurrentChannel($deviceIp) {
-    try {
-        $response = makeApiCall('GET', $deviceIp, 'details/channel');
-        $data = json_decode($response, true);
-        return isset($data['data']) ? intval($data['data']) : null;
-    } catch (Exception $e) {
-        logMessage('Error getting current channel: ' . $e->getMessage(), 'error');
-        return null;
-    }
-}
-
-/**
- * Function to set volume
+ * Set volume level on device
  */
 function setVolume($deviceIp, $volume) {
     try {
@@ -186,259 +209,38 @@ function setVolume($deviceIp, $volume) {
 }
 
 /**
- * Function to disable DSP Line audio to prevent popping
- * Uses the command/audio/dsp/line endpoint with "off" value
+ * Check if device supports volume control
  */
-function disableDspLineAudio($deviceIp) {
+function supportsVolumeControl($deviceIp) {
     try {
-        $response = makeApiCall('POST', $deviceIp, 'command/audio/dsp/line', '"off"', 'application/json');
-        $data = json_decode($response, true);
-        logMessage("DSP Line audio disabled for $deviceIp", 'info');
-        return isset($data['data']) && $data['data'] === 'OK';
+        $model = getDeviceModel($deviceIp);
+        return in_array($model, VOLUME_CONTROL_MODELS);
     } catch (Exception $e) {
-        // This might fail on devices that don't support this endpoint (non-3G+AVP TX or 3G+WP4 TX devices)
-        // We'll log it but not treat it as an error
-        logMessage("Notice: DSP Line audio control not available for $deviceIp: " . $e->getMessage(), 'info');
+        logMessage('Error checking volume control support: ' . $e->getMessage(), 'error');
         return false;
     }
 }
 
+// ============================================================================
+// CHANNEL CONTROL
+// ============================================================================
+
 /**
- * Function to enable DSP Line audio after input change
- * Uses the command/audio/dsp/line endpoint with "on" value
+ * Get current channel from device
  */
-function enableDspLineAudio($deviceIp) {
+function getCurrentChannel($deviceIp) {
     try {
-        $response = makeApiCall('POST', $deviceIp, 'command/audio/dsp/line', '"on"', 'application/json');
+        $response = makeApiCall('GET', $deviceIp, 'details/channel');
         $data = json_decode($response, true);
-        logMessage("DSP Line audio enabled for $deviceIp", 'info');
-        return isset($data['data']) && $data['data'] === 'OK';
+        return isset($data['data']) ? intval($data['data']) : null;
     } catch (Exception $e) {
-        // This might fail on devices that don't support this endpoint (non-3G+AVP TX or 3G+WP4 TX devices)
-        // We'll log it but not treat it as an error
-        logMessage("Notice: DSP Line audio control not available for $deviceIp: " . $e->getMessage(), 'info');
-        return false;
+        logMessage('Error getting current channel: ' . $e->getMessage(), 'error');
+        return null;
     }
 }
 
 /**
- * Function to disable DSP HDMI audio to prevent popping
- * Uses the command/audio/dsp/hdmi endpoint with "off" value
- */
-function disableDspHdmiAudio($deviceIp) {
-    try {
-        $response = makeApiCall('POST', $deviceIp, 'command/audio/dsp/hdmi', '"off"', 'application/json');
-        $data = json_decode($response, true);
-        logMessage("DSP HDMI audio disabled for $deviceIp", 'info');
-        return isset($data['data']) && $data['data'] === 'OK';
-    } catch (Exception $e) {
-        // This might fail on devices that don't support this endpoint
-        logMessage("Notice: DSP HDMI audio control not available for $deviceIp: " . $e->getMessage(), 'info');
-        return false;
-    }
-}
-
-/**
- * Function to enable DSP HDMI audio after input change
- * Uses the command/audio/dsp/hdmi endpoint with "on" value
- */
-function enableDspHdmiAudio($deviceIp) {
-    try {
-        $response = makeApiCall('POST', $deviceIp, 'command/audio/dsp/hdmi', '"on"', 'application/json');
-        $data = json_decode($response, true);
-        logMessage("DSP HDMI audio enabled for $deviceIp", 'info');
-        return isset($data['data']) && $data['data'] === 'OK';
-    } catch (Exception $e) {
-        // This might fail on devices that don't support this endpoint
-        logMessage("Notice: DSP HDMI audio control not available for $deviceIp: " . $e->getMessage(), 'info');
-        return false;
-    }
-}
-
-/**
- * Function to disable HDMI audio to prevent popping
- * Uses the command/hdmi/audio/mute endpoint
- */
-function disableHdmiAudio($deviceIp) {
-    try {
-        $response = makeApiCall('POST', $deviceIp, 'command/hdmi/audio/mute', null);
-        $data = json_decode($response, true);
-        logMessage("HDMI audio muted for $deviceIp", 'info');
-        return isset($data['data']) && $data['data'] === 'OK';
-    } catch (Exception $e) {
-        logMessage('Error disabling HDMI audio: ' . $e->getMessage(), 'error');
-        return false;
-    }
-}
-
-/**
- * Function to enable HDMI audio after input change
- * Uses the command/hdmi/audio/unmute endpoint
- */
-function enableHdmiAudio($deviceIp) {
-    try {
-        $response = makeApiCall('POST', $deviceIp, 'command/hdmi/audio/unmute', null);
-        $data = json_decode($response, true);
-        logMessage("HDMI audio unmuted for $deviceIp", 'info');
-        return isset($data['data']) && $data['data'] === 'OK';
-    } catch (Exception $e) {
-        logMessage('Error enabling HDMI audio: ' . $e->getMessage(), 'error');
-        return false;
-    }
-}
-
-/**
- * Function to disable stereo audio output to prevent popping
- * Uses the CLI command with audio_out.sh mute
- */
-function disableStereoAudio($deviceIp) {
-    try {
-        $response = makeApiCall('POST', $deviceIp, 'command/cli', 'audio_out.sh mute', 'text/plain');
-        $data = json_decode($response, true);
-        logMessage("Stereo audio muted for $deviceIp", 'info');
-        return isset($data['data']) && $data['data'] === 'OK';
-    } catch (Exception $e) {
-        logMessage('Error disabling stereo audio: ' . $e->getMessage(), 'error');
-        return false;
-    }
-}
-
-/**
- * Function to enable stereo audio output after input change
- * Uses the CLI command with audio_out.sh unmute
- */
-function enableStereoAudio($deviceIp) {
-    try {
-        $response = makeApiCall('POST', $deviceIp, 'command/cli', 'audio_out.sh unmute', 'text/plain');
-        $data = json_decode($response, true);
-        logMessage("Stereo audio unmuted for $deviceIp", 'info');
-        return isset($data['data']) && $data['data'] === 'OK';
-    } catch (Exception $e) {
-        logMessage('Error enabling stereo audio: ' . $e->getMessage(), 'error');
-        return false;
-    }
-}
-
-/**
- * Function to set channel with audio muting to prevent popping
- * Now uses DSP audio control endpoints in addition to other muting methods
- */
-function setChannelWithoutPopping($deviceIp, $channel) {
-    try {
-        logMessage("Starting channel change to $channel with comprehensive anti-popping measures", 'info');
-        
-        // Step 1: Get the current device model to determine if it supports DSP endpoints
-        $deviceModel = getDeviceModel($deviceIp);
-        $supportsDsp = (strpos($deviceModel, '3G+AVP TX') !== false || strpos($deviceModel, '3G+WP4 TX') !== false);
-        
-        logMessage("Device $deviceIp is model: $deviceModel, DSP support: " . ($supportsDsp ? 'Yes' : 'No'), 'info');
-        
-        // Step 2: Set volume to zero first (if applicable)
-        $currentVolume = getCurrentVolume($deviceIp);
-        if ($currentVolume !== null && $currentVolume > 0) {
-            setVolume($deviceIp, 0);
-            sleep(1); // 1 second delay
-            logMessage("Set volume to 0 for transition", 'info');
-        }
-        
-        // Step 3: Disable all audio outputs using all available methods
-        
-        // 3a. Use DSP endpoints if supported
-        if ($supportsDsp) {
-            disableDspLineAudio($deviceIp);
-            disableDspHdmiAudio($deviceIp);
-            logMessage("Disabled DSP audio processing", 'info');
-        }
-        
-        // 3b. Use standard audio muting for all devices
-        disableHdmiAudio($deviceIp);
-        disableStereoAudio($deviceIp);
-        logMessage("Disabled all audio outputs", 'info');
-        
-        // Step 4: Wait significantly longer for audio disable to take effect
-        sleep(2); // 2 seconds delay
-        
-        // Step 5: Change channel
-        $channelChangeResult = setChannel($deviceIp, $channel);
-        logMessage("Changed channel to $channel, result: " . ($channelChangeResult ? 'Success' : 'Failed'), 'info');
-        
-        // Step 6: Wait significantly longer for channel change to settle
-        sleep(3); // 3 seconds delay
-        
-        // Step 7: Re-enable all audio outputs in reverse order
-        enableStereoAudio($deviceIp);
-        enableHdmiAudio($deviceIp);
-        logMessage("Re-enabled standard audio outputs", 'info');
-        
-        // Step 8: Re-enable DSP processing if supported
-        if ($supportsDsp) {
-            enableDspHdmiAudio($deviceIp);
-            enableDspLineAudio($deviceIp);
-            logMessage("Re-enabled DSP audio processing", 'info');
-        }
-        
-        // Step 9: Wait for audio re-enable to take effect
-        sleep(1); // 1 second delay
-        
-        // Step 10: Restore original volume if it was changed
-        if ($currentVolume !== null && $currentVolume > 0) {
-            // Gradually restore volume in steps to prevent popping
-            $step = max(1, round($currentVolume / 5));
-            $currentStep = 0;
-            
-            while ($currentStep < $currentVolume) {
-                $currentStep = min($currentStep + $step, $currentVolume);
-                setVolume($deviceIp, $currentStep);
-                usleep(200000); // 200ms between volume steps
-            }
-            
-            logMessage("Restored volume to original level: $currentVolume", 'info');
-        }
-        
-        logMessage("Completed channel change with anti-popping measures", 'info');
-        return $channelChangeResult;
-    } catch (Exception $e) {
-        // In case of error, attempt to re-enable audio
-        try {
-            // Re-enable all standard audio
-            enableHdmiAudio($deviceIp);
-            enableStereoAudio($deviceIp);
-            
-            // If we know the device supports DSP, re-enable DSP audio
-            if (isset($supportsDsp) && $supportsDsp) {
-                enableDspHdmiAudio($deviceIp);
-                enableDspLineAudio($deviceIp);
-            }
-            
-            // Try to restore volume if we know it
-            if (isset($currentVolume) && $currentVolume > 0) {
-                setVolume($deviceIp, $currentVolume);
-            }
-        } catch (Exception $re) {
-            logMessage("Error re-enabling audio after channel change failure: " . $re->getMessage(), 'error');
-        }
-        
-        logMessage('Error setting channel with audio muting: ' . $e->getMessage(), 'error');
-        return false;
-    }
-}
-
-/**
- * Function to get device model
- */
-function getDeviceModel($deviceIp) {
-    try {
-        $response = makeApiCall('GET', $deviceIp, 'details/device/model');
-        $data = json_decode($response, true);
-        return isset($data['data']) ? $data['data'] : '';
-    } catch (Exception $e) {
-        logMessage('Error getting device model: ' . $e->getMessage(), 'error');
-        return '';
-    }
-}
-
-/**
- * Function to set channel
+ * Set channel on device
  */
 function setChannel($deviceIp, $channel) {
     try {
@@ -451,26 +253,219 @@ function setChannel($deviceIp, $channel) {
     }
 }
 
+// ============================================================================
+// DEVICE INFORMATION
+// ============================================================================
+
 /**
- * Function to check volume control support
+ * Get device model string
  */
-function supportsVolumeControl($deviceIp) {
+function getDeviceModel($deviceIp) {
     try {
         $response = makeApiCall('GET', $deviceIp, 'details/device/model');
         $data = json_decode($response, true);
-        $model = $data['data'] ?? '';
-        if (!defined('VOLUME_CONTROL_MODELS')) {
-            define('VOLUME_CONTROL_MODELS', ['3G+4+ TX', '3G+AVP RX', '3G+AVP TX', '3G+WP4 TX', '2G/3G SX']);
-        }
-        return in_array($model, VOLUME_CONTROL_MODELS);
+        return isset($data['data']) ? $data['data'] : '';
     } catch (Exception $e) {
-        logMessage('Error checking volume control support: ' . $e->getMessage(), 'error');
+        logMessage('Error getting device model: ' . $e->getMessage(), 'error');
+        return '';
+    }
+}
+
+// ============================================================================
+// DSP AUDIO CONTROL (Advanced)
+// ============================================================================
+
+/**
+ * Check if device supports DSP audio control
+ */
+function supportsDspControl($deviceIp) {
+    $model = getDeviceModel($deviceIp);
+    return (strpos($model, '3G+AVP TX') !== false || strpos($model, '3G+WP4 TX') !== false);
+}
+
+/**
+ * Disable DSP Line audio
+ */
+function disableDspLineAudio($deviceIp) {
+    try {
+        $response = makeApiCall('POST', $deviceIp, 'command/audio/dsp/line', '"off"', 'application/json');
+        $data = json_decode($response, true);
+        return isset($data['data']) && $data['data'] === 'OK';
+    } catch (Exception $e) {
+        logMessage("DSP Line audio control not available for $deviceIp: " . $e->getMessage(), 'info');
         return false;
     }
 }
 
 /**
- * Function to sanitize input
+ * Enable DSP Line audio
+ */
+function enableDspLineAudio($deviceIp) {
+    try {
+        $response = makeApiCall('POST', $deviceIp, 'command/audio/dsp/line', '"on"', 'application/json');
+        $data = json_decode($response, true);
+        return isset($data['data']) && $data['data'] === 'OK';
+    } catch (Exception $e) {
+        logMessage("DSP Line audio control not available for $deviceIp: " . $e->getMessage(), 'info');
+        return false;
+    }
+}
+
+/**
+ * Disable DSP HDMI audio
+ */
+function disableDspHdmiAudio($deviceIp) {
+    try {
+        $response = makeApiCall('POST', $deviceIp, 'command/audio/dsp/hdmi', '"off"', 'application/json');
+        $data = json_decode($response, true);
+        return isset($data['data']) && $data['data'] === 'OK';
+    } catch (Exception $e) {
+        logMessage("DSP HDMI audio control not available for $deviceIp: " . $e->getMessage(), 'info');
+        return false;
+    }
+}
+
+/**
+ * Enable DSP HDMI audio
+ */
+function enableDspHdmiAudio($deviceIp) {
+    try {
+        $response = makeApiCall('POST', $deviceIp, 'command/audio/dsp/hdmi', '"on"', 'application/json');
+        $data = json_decode($response, true);
+        return isset($data['data']) && $data['data'] === 'OK';
+    } catch (Exception $e) {
+        logMessage("DSP HDMI audio control not available for $deviceIp: " . $e->getMessage(), 'info');
+        return false;
+    }
+}
+
+/**
+ * Disable HDMI audio (mute)
+ */
+function disableHdmiAudio($deviceIp) {
+    try {
+        $response = makeApiCall('POST', $deviceIp, 'command/hdmi/audio/mute', null);
+        $data = json_decode($response, true);
+        return isset($data['data']) && $data['data'] === 'OK';
+    } catch (Exception $e) {
+        logMessage('Error disabling HDMI audio: ' . $e->getMessage(), 'error');
+        return false;
+    }
+}
+
+/**
+ * Enable HDMI audio (unmute)
+ */
+function enableHdmiAudio($deviceIp) {
+    try {
+        $response = makeApiCall('POST', $deviceIp, 'command/hdmi/audio/unmute', null);
+        $data = json_decode($response, true);
+        return isset($data['data']) && $data['data'] === 'OK';
+    } catch (Exception $e) {
+        logMessage('Error enabling HDMI audio: ' . $e->getMessage(), 'error');
+        return false;
+    }
+}
+
+/**
+ * Disable stereo audio output (mute)
+ */
+function disableStereoAudio($deviceIp) {
+    try {
+        $response = makeApiCall('POST', $deviceIp, 'command/cli', 'audio_out.sh mute', 'text/plain');
+        $data = json_decode($response, true);
+        return isset($data['data']) && $data['data'] === 'OK';
+    } catch (Exception $e) {
+        logMessage('Error disabling stereo audio: ' . $e->getMessage(), 'error');
+        return false;
+    }
+}
+
+/**
+ * Enable stereo audio output (unmute)
+ */
+function enableStereoAudio($deviceIp) {
+    try {
+        $response = makeApiCall('POST', $deviceIp, 'command/cli', 'audio_out.sh unmute', 'text/plain');
+        $data = json_decode($response, true);
+        return isset($data['data']) && $data['data'] === 'OK';
+    } catch (Exception $e) {
+        logMessage('Error enabling stereo audio: ' . $e->getMessage(), 'error');
+        return false;
+    }
+}
+
+/**
+ * Set channel with comprehensive anti-popping measures
+ */
+function setChannelWithoutPopping($deviceIp, $channel) {
+    try {
+        $supportsDsp = supportsDspControl($deviceIp);
+        $currentVolume = getCurrentVolume($deviceIp);
+
+        // Step 1: Set volume to zero
+        if ($currentVolume !== null && $currentVolume > 0) {
+            setVolume($deviceIp, 0);
+            sleep(1);
+        }
+
+        // Step 2: Disable audio outputs
+        if ($supportsDsp) {
+            disableDspLineAudio($deviceIp);
+            disableDspHdmiAudio($deviceIp);
+        }
+        disableHdmiAudio($deviceIp);
+        disableStereoAudio($deviceIp);
+
+        sleep(2);
+
+        // Step 3: Change channel
+        $channelChangeResult = setChannel($deviceIp, $channel);
+
+        sleep(3);
+
+        // Step 4: Re-enable audio
+        enableStereoAudio($deviceIp);
+        enableHdmiAudio($deviceIp);
+        if ($supportsDsp) {
+            enableDspHdmiAudio($deviceIp);
+            enableDspLineAudio($deviceIp);
+        }
+
+        sleep(1);
+
+        // Step 5: Restore volume
+        if ($currentVolume !== null && $currentVolume > 0) {
+            setVolume($deviceIp, $currentVolume);
+        }
+
+        return $channelChangeResult;
+    } catch (Exception $e) {
+        // Attempt to re-enable audio on error
+        try {
+            enableHdmiAudio($deviceIp);
+            enableStereoAudio($deviceIp);
+            if (isset($supportsDsp) && $supportsDsp) {
+                enableDspHdmiAudio($deviceIp);
+                enableDspLineAudio($deviceIp);
+            }
+            if (isset($currentVolume) && $currentVolume > 0) {
+                setVolume($deviceIp, $currentVolume);
+            }
+        } catch (Exception $re) {
+            logMessage("Error re-enabling audio: " . $re->getMessage(), 'error');
+        }
+        logMessage('Error setting channel with anti-popping: ' . $e->getMessage(), 'error');
+        return false;
+    }
+}
+
+// ============================================================================
+// INPUT VALIDATION
+// ============================================================================
+
+/**
+ * Sanitize user input
  */
 function sanitizeInput($data, $type, $options = []) {
     switch ($type) {
@@ -494,19 +489,28 @@ function sanitizeInput($data, $type, $options = []) {
     return $sanitized !== false ? $sanitized : null;
 }
 
+// ============================================================================
+// LOGGING
+// ============================================================================
+
 /**
- * Function to log messages
+ * Log messages to file
  */
 function logMessage($message, $level = 'info') {
     if ($level === 'error' || strtolower(LOG_LEVEL) === $level) {
         $timestamp = date('Y-m-d H:i:s');
         $formattedMessage = "[$timestamp] [$level] $message" . PHP_EOL;
-        error_log($formattedMessage, 3, __DIR__ . '/av_controls.log');
+        $logFile = defined('LOG_FILE') ? LOG_FILE : __DIR__ . '/av_controls.log';
+        error_log($formattedMessage, 3, $logFile);
     }
 }
 
+// ============================================================================
+// PAYLOAD LOADING
+// ============================================================================
+
 /**
- * Function to load IR command payloads
+ * Load IR command payloads from file
  */
 function loadPayloads($filename) {
     $payloads = [];
