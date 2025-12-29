@@ -136,6 +136,13 @@ function generateReceiverForm($receiverName, $deviceIp, $minVolume, $maxVolume, 
 function makeApiCall($method, $deviceIp, $endpoint, $data = null, $contentType = 'application/x-www-form-urlencoded') {
     $timeout = defined('API_TIMEOUT') ? API_TIMEOUT : 5;
 
+    // Handle both full URLs (http://...) and bare IP addresses
+    if (preg_match('#^https?://#i', $deviceIp)) {
+        // Already has scheme - extract just the host/IP
+        $parsed = parse_url($deviceIp);
+        $deviceIp = $parsed['host'] ?? $deviceIp;
+    }
+
     $apiUrl = 'http://' . $deviceIp . '/cgi-bin/api/' . $endpoint;
     $ch = curl_init($apiUrl);
 
