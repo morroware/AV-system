@@ -171,380 +171,6 @@ $settings = $config['settings'] ?? [];
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Zone Manager - Castle AV Controls</title>
     <link rel="stylesheet" href="shared/styles.css">
-    <style>
-        .zone-manager {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 2rem;
-        }
-
-        .manager-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 2rem;
-            flex-wrap: wrap;
-            gap: 1rem;
-        }
-
-        .manager-header h1 {
-            margin: 0;
-            color: var(--primary-color);
-        }
-
-        .header-actions {
-            display: flex;
-            gap: 1rem;
-        }
-
-        .btn {
-            padding: 0.75rem 1.5rem;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 1rem;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .btn-primary {
-            background: var(--primary-color);
-            color: #000;
-        }
-
-        .btn-primary:hover {
-            background: #00E676;
-            transform: translateY(-2px);
-        }
-
-        .btn-secondary {
-            background: var(--surface-color);
-            color: var(--text-primary);
-            border: 1px solid var(--border-color);
-        }
-
-        .btn-secondary:hover {
-            background: var(--hover-color);
-        }
-
-        .btn-danger {
-            background: #CF6679;
-            color: #000;
-        }
-
-        .btn-danger:hover {
-            background: #E57373;
-        }
-
-        .btn-sm {
-            padding: 0.5rem 1rem;
-            font-size: 0.875rem;
-        }
-
-        .zones-table {
-            width: 100%;
-            border-collapse: collapse;
-            background: var(--surface-color);
-            border-radius: 8px;
-            overflow: hidden;
-        }
-
-        .zones-table th,
-        .zones-table td {
-            padding: 1rem;
-            text-align: left;
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        .zones-table th {
-            background: var(--hover-color);
-            font-weight: 600;
-            color: var(--primary-color);
-        }
-
-        .zones-table tr:hover {
-            background: var(--hover-color);
-        }
-
-        .zones-table tr.disabled {
-            opacity: 0.5;
-        }
-
-        .zone-color {
-            width: 24px;
-            height: 24px;
-            border-radius: 4px;
-            display: inline-block;
-        }
-
-        .zone-status {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.25rem 0.75rem;
-            border-radius: 20px;
-            font-size: 0.875rem;
-        }
-
-        .status-enabled {
-            background: rgba(0, 200, 83, 0.2);
-            color: #00C853;
-        }
-
-        .status-disabled {
-            background: rgba(207, 102, 121, 0.2);
-            color: #CF6679;
-        }
-
-        .zone-actions {
-            display: flex;
-            gap: 0.5rem;
-            flex-wrap: wrap;
-        }
-
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            z-index: 1000;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .modal.active {
-            display: flex;
-        }
-
-        .modal-content {
-            background: var(--surface-color);
-            padding: 2rem;
-            border-radius: 12px;
-            max-width: 500px;
-            width: 90%;
-            max-height: 90vh;
-            overflow-y: auto;
-        }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1.5rem;
-        }
-
-        .modal-header h2 {
-            margin: 0;
-            color: var(--primary-color);
-        }
-
-        .modal-close {
-            background: none;
-            border: none;
-            color: var(--text-secondary);
-            font-size: 1.5rem;
-            cursor: pointer;
-            padding: 0.5rem;
-        }
-
-        .modal-close:hover {
-            color: var(--text-primary);
-        }
-
-        .form-group {
-            margin-bottom: 1.5rem;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-weight: 600;
-            color: var(--text-primary);
-        }
-
-        .form-group input[type="text"],
-        .form-group input[type="color"],
-        .form-group select,
-        .form-group textarea {
-            width: 100%;
-            padding: 0.75rem;
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            background: var(--background-color);
-            color: var(--text-primary);
-            font-size: 1rem;
-        }
-
-        .form-group input:focus,
-        .form-group select:focus,
-        .form-group textarea:focus {
-            outline: none;
-            border-color: var(--primary-color);
-        }
-
-        .form-group input[type="color"] {
-            height: 50px;
-            padding: 0.25rem;
-            cursor: pointer;
-        }
-
-        .form-group textarea {
-            resize: vertical;
-            min-height: 80px;
-        }
-
-        .form-group .checkbox-label {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            cursor: pointer;
-        }
-
-        .form-group input[type="checkbox"] {
-            width: 20px;
-            height: 20px;
-            cursor: pointer;
-        }
-
-        .form-hint {
-            font-size: 0.875rem;
-            color: var(--text-secondary);
-            margin-top: 0.25rem;
-        }
-
-        .modal-actions {
-            display: flex;
-            gap: 1rem;
-            justify-content: flex-end;
-            margin-top: 2rem;
-        }
-
-        .alert {
-            padding: 1rem;
-            border-radius: 6px;
-            margin-bottom: 1rem;
-        }
-
-        .alert-success {
-            background: rgba(0, 200, 83, 0.2);
-            border: 1px solid #00C853;
-            color: #00C853;
-        }
-
-        .alert-error {
-            background: rgba(207, 102, 121, 0.2);
-            border: 1px solid #CF6679;
-            color: #CF6679;
-        }
-
-        .drag-handle {
-            cursor: grab;
-            color: var(--text-secondary);
-            padding: 0.5rem;
-        }
-
-        .drag-handle:active {
-            cursor: grabbing;
-        }
-
-        .dragging {
-            opacity: 0.5;
-            background: var(--hover-color);
-        }
-
-        .instructions {
-            background: var(--surface-color);
-            padding: 1.5rem;
-            border-radius: 8px;
-            margin-bottom: 2rem;
-            border-left: 4px solid var(--primary-color);
-        }
-
-        .instructions h3 {
-            margin-top: 0;
-            color: var(--primary-color);
-        }
-
-        .instructions ul {
-            margin: 0;
-            padding-left: 1.5rem;
-        }
-
-        .instructions li {
-            margin-bottom: 0.5rem;
-            color: var(--text-secondary);
-        }
-
-        .section-divider {
-            height: 1px;
-            background: linear-gradient(90deg, transparent, var(--border-color), transparent);
-            margin: 3rem 0 2rem;
-        }
-
-        .section-description {
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-            margin-bottom: 1.5rem;
-            line-height: 1.5;
-        }
-
-        .url-cell {
-            max-width: 250px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        .url-cell a {
-            color: var(--primary-color);
-            text-decoration: none;
-        }
-
-        .url-cell a:hover {
-            text-decoration: underline;
-        }
-
-        .empty-row td {
-            background: rgba(255, 255, 255, 0.02);
-        }
-
-        .btn-link {
-            background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
-            color: #fff;
-        }
-
-        .btn-link:hover {
-            background: linear-gradient(135deg, #42A5F5 0%, #2196F3 100%);
-            transform: translateY(-2px);
-        }
-
-        @media (max-width: 768px) {
-            .zones-table {
-                display: block;
-                overflow-x: auto;
-            }
-
-            .manager-header {
-                flex-direction: column;
-                align-items: stretch;
-            }
-
-            .header-actions {
-                flex-direction: column;
-            }
-
-            .url-cell {
-                max-width: 150px;
-            }
-        }
-    </style>
 </head>
 <body>
     <div class="content-wrapper">
@@ -617,24 +243,24 @@ $settings = $config['settings'] ?? [];
                 <tbody id="zones-tbody">
                     <?php foreach ($zones as $zone): ?>
                     <tr data-id="<?php echo htmlspecialchars($zone['id']); ?>" class="<?php echo empty($zone['enabled']) ? 'disabled' : ''; ?>">
-                        <td>
+                        <td data-label="">
                             <span class="drag-handle" title="Drag to reorder">&#9776;</span>
                         </td>
-                        <td><code><?php echo htmlspecialchars($zone['id']); ?></code></td>
-                        <td><?php echo htmlspecialchars($zone['name'] ?? ''); ?></td>
-                        <td><?php echo htmlspecialchars($zone['description'] ?? ''); ?></td>
-                        <td>
-                            <span class="zone-color" style="background: <?php echo htmlspecialchars($zone['color'] ?? '#00C853'); ?>"></span>
+                        <td data-label="ID"><code><?php echo htmlspecialchars($zone['id']); ?></code></td>
+                        <td data-label="Name"><?php echo htmlspecialchars($zone['name'] ?? ''); ?></td>
+                        <td data-label="Description"><?php echo htmlspecialchars($zone['description'] ?? ''); ?></td>
+                        <td data-label="Color">
+                            <span class="zone-color" style="background: <?php echo htmlspecialchars($zone['color'] ?? '#6366f1'); ?>"></span>
                         </td>
-                        <td>
+                        <td data-label="Status">
                             <span class="zone-status <?php echo !empty($zone['enabled']) ? 'status-enabled' : 'status-disabled'; ?>">
                                 <?php echo !empty($zone['enabled']) ? 'Enabled' : 'Disabled'; ?>
                             </span>
                         </td>
-                        <td>
+                        <td data-label="Navigation">
                             <?php echo !empty($zone['showInNav']) ? 'Visible' : 'Hidden'; ?>
                         </td>
-                        <td class="zone-actions">
+                        <td data-label="" class="zone-actions">
                             <button class="btn btn-secondary btn-sm" onclick="openEditModal('<?php echo htmlspecialchars($zone['id']); ?>')">Edit</button>
                             <button class="btn btn-secondary btn-sm" onclick="openDuplicateModal('<?php echo htmlspecialchars($zone['id']); ?>')">Duplicate</button>
                             <button class="btn btn-danger btn-sm" onclick="openDeleteModal('<?php echo htmlspecialchars($zone['id']); ?>')">Delete</button>
@@ -683,24 +309,24 @@ $settings = $config['settings'] ?? [];
                 <tbody id="quicklinks-tbody">
                     <?php foreach ($quickLinks as $link): ?>
                     <tr data-id="<?php echo htmlspecialchars($link['id']); ?>" class="<?php echo empty($link['enabled']) ? 'disabled' : ''; ?>">
-                        <td>
+                        <td data-label="">
                             <span class="drag-handle link-drag" title="Drag to reorder">&#9776;</span>
                         </td>
-                        <td><code><?php echo htmlspecialchars($link['id']); ?></code></td>
-                        <td><?php echo htmlspecialchars($link['name'] ?? ''); ?></td>
-                        <td class="url-cell"><a href="<?php echo htmlspecialchars($link['url'] ?? '#'); ?>" target="_blank" rel="noopener"><?php echo htmlspecialchars($link['url'] ?? ''); ?></a></td>
-                        <td>
-                            <span class="zone-color" style="background: <?php echo htmlspecialchars($link['color'] ?? '#2196F3'); ?>"></span>
+                        <td data-label="ID"><code><?php echo htmlspecialchars($link['id']); ?></code></td>
+                        <td data-label="Name"><?php echo htmlspecialchars($link['name'] ?? ''); ?></td>
+                        <td data-label="URL" class="url-cell"><a href="<?php echo htmlspecialchars($link['url'] ?? '#'); ?>" target="_blank" rel="noopener"><?php echo htmlspecialchars($link['url'] ?? ''); ?></a></td>
+                        <td data-label="Color">
+                            <span class="zone-color" style="background: <?php echo htmlspecialchars($link['color'] ?? '#6366f1'); ?>"></span>
                         </td>
-                        <td>
+                        <td data-label="Status">
                             <span class="zone-status <?php echo !empty($link['enabled']) ? 'status-enabled' : 'status-disabled'; ?>">
                                 <?php echo !empty($link['enabled']) ? 'Enabled' : 'Disabled'; ?>
                             </span>
                         </td>
-                        <td>
+                        <td data-label="New Tab">
                             <?php echo !empty($link['openInNewTab']) ? 'Yes' : 'No'; ?>
                         </td>
-                        <td class="zone-actions">
+                        <td data-label="" class="zone-actions">
                             <button class="btn btn-secondary btn-sm" onclick="openEditLinkModal('<?php echo htmlspecialchars($link['id']); ?>')">Edit</button>
                             <button class="btn btn-danger btn-sm" onclick="openDeleteLinkModal('<?php echo htmlspecialchars($link['id']); ?>')">Delete</button>
                         </td>
@@ -708,7 +334,7 @@ $settings = $config['settings'] ?? [];
                     <?php endforeach; ?>
                     <?php if (empty($quickLinks)): ?>
                     <tr class="empty-row">
-                        <td colspan="8" style="text-align: center; padding: 2rem; color: var(--text-secondary);">
+                        <td colspan="8">
                             No quick links configured. Click "Add Quick Link" to create one.
                         </td>
                     </tr>
@@ -849,30 +475,30 @@ $settings = $config['settings'] ?? [];
     <div class="modal" id="delete-modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2 style="color: #CF6679;">Delete Zone</h2>
+                <h2 class="delete-title">Delete Zone</h2>
                 <button class="modal-close" onclick="closeModal('delete-modal')" aria-label="Close">&times;</button>
             </div>
             <form id="delete-form" onsubmit="submitDeleteForm(event)">
                 <input type="hidden" id="delete-id" name="id">
-                <div style="background: rgba(207, 102, 121, 0.1); padding: 1rem; border-radius: 8px; margin-bottom: 1rem; border: 1px solid #CF6679;">
-                    <p style="margin: 0; font-size: 1.1rem;">
-                        Are you sure you want to delete the zone <strong id="delete-zone-name" style="color: #CF6679;"></strong>?
+                <div class="delete-warning">
+                    <p>
+                        Are you sure you want to delete the zone <strong id="delete-zone-name"></strong>?
                     </p>
                 </div>
-                <p style="color: var(--text-secondary); margin-bottom: 1rem;">This will remove the zone from navigation. You can choose whether to keep or delete its configuration files.</p>
+                <p class="section-description">This will remove the zone from navigation. You can choose whether to keep or delete its configuration files.</p>
                 <div class="form-group">
-                    <label class="checkbox-label" style="color: #CF6679; font-weight: 600;">
+                    <label class="checkbox-label delete-checkbox">
                         <input type="checkbox" id="delete-directory" name="deleteDirectory">
                         Also delete zone directory and all configuration files
                     </label>
-                    <p class="form-hint" style="color: #CF6679; margin-top: 0.5rem;">
-                        <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" style="vertical-align: middle; margin-right: 0.25rem;">
+                    <p class="form-hint delete-hint">
+                        <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
                             <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
                         </svg>
                         This permanently deletes all zone files and cannot be undone!
                     </p>
                 </div>
-                <div class="form-group" id="confirm-delete-group" style="display: none;">
+                <div class="form-group confirm-delete-group" id="confirm-delete-group">
                     <label for="confirm-delete-input">Type "<strong id="zone-id-to-confirm"></strong>" to confirm deletion:</label>
                     <input type="text" id="confirm-delete-input" placeholder="Type zone ID to confirm" autocomplete="off">
                 </div>
@@ -994,17 +620,17 @@ $settings = $config['settings'] ?? [];
     <div class="modal" id="delete-link-modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2 style="color: #CF6679;">Delete Quick Link</h2>
+                <h2 class="delete-title">Delete Quick Link</h2>
                 <button class="modal-close" onclick="closeModal('delete-link-modal')" aria-label="Close">&times;</button>
             </div>
             <form id="delete-link-form" onsubmit="submitDeleteLinkForm(event)">
                 <input type="hidden" id="delete-link-id" name="id">
-                <div style="background: rgba(207, 102, 121, 0.1); padding: 1rem; border-radius: 8px; margin-bottom: 1rem; border: 1px solid #CF6679;">
-                    <p style="margin: 0; font-size: 1.1rem;">
-                        Are you sure you want to delete the quick link <strong id="delete-link-name" style="color: #CF6679;"></strong>?
+                <div class="delete-warning">
+                    <p>
+                        Are you sure you want to delete the quick link <strong id="delete-link-name"></strong>?
                     </p>
                 </div>
-                <p style="color: var(--text-secondary); margin-bottom: 1rem;">This will remove the link from the home page.</p>
+                <p class="section-description">This will remove the link from the home page.</p>
                 <div class="modal-actions">
                     <button type="button" class="btn btn-secondary" onclick="closeModal('delete-link-modal')">Cancel</button>
                     <button type="submit" class="btn btn-danger">Delete Quick Link</button>
@@ -1066,7 +692,7 @@ $settings = $config['settings'] ?? [];
             document.getElementById('delete-id').value = zone.id;
             document.getElementById('delete-zone-name').textContent = zone.name || zone.id;
             document.getElementById('delete-directory').checked = false;
-            document.getElementById('confirm-delete-group').style.display = 'none';
+            document.getElementById('confirm-delete-group').classList.remove('visible');
             document.getElementById('confirm-delete-input').value = '';
             document.getElementById('zone-id-to-confirm').textContent = zone.id;
             document.getElementById('delete-submit-btn').disabled = false;
@@ -1076,10 +702,10 @@ $settings = $config['settings'] ?? [];
                 const confirmGroup = document.getElementById('confirm-delete-group');
                 const submitBtn = document.getElementById('delete-submit-btn');
                 if (this.checked) {
-                    confirmGroup.style.display = 'block';
+                    confirmGroup.classList.add('visible');
                     submitBtn.disabled = true;
                 } else {
-                    confirmGroup.style.display = 'none';
+                    confirmGroup.classList.remove('visible');
                     submitBtn.disabled = false;
                 }
             });
