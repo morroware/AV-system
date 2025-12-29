@@ -197,7 +197,15 @@ $settings = $config['settings'] ?? [];
         <div class="zone-manager">
             <div id="alert-container"></div>
 
-            <div class="instructions">
+            <!-- Collapsible instructions toggle for mobile -->
+            <button class="instructions-toggle" id="instructions-toggle" onclick="toggleInstructions()">
+                <span>View Instructions</span>
+                <svg viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                </svg>
+            </button>
+
+            <div class="instructions" id="instructions">
                 <h3>Zone Management Instructions</h3>
                 <ul>
                     <li><strong>Add Zone:</strong> Create a new zone with custom settings. Optionally copy configuration from an existing zone.</li>
@@ -241,16 +249,28 @@ $settings = $config['settings'] ?? [];
                     </tr>
                 </thead>
                 <tbody id="zones-tbody">
-                    <?php foreach ($zones as $zone): ?>
-                    <tr data-id="<?php echo htmlspecialchars($zone['id']); ?>" class="<?php echo empty($zone['enabled']) ? 'disabled' : ''; ?>">
+                    <?php foreach ($zones as $zone):
+                        $zoneColor = htmlspecialchars($zone['color'] ?? '#6366f1');
+                    ?>
+                    <tr data-id="<?php echo htmlspecialchars($zone['id']); ?>"
+                        class="<?php echo empty($zone['enabled']) ? 'disabled' : ''; ?>"
+                        style="--zone-color: <?php echo $zoneColor; ?>">
                         <td data-label="">
                             <span class="drag-handle" title="Drag to reorder">&#9776;</span>
+                            <div class="reorder-buttons">
+                                <button type="button" class="reorder-btn" onclick="moveRow(this, 'up')" title="Move up">
+                                    <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clip-rule="evenodd"/></svg>
+                                </button>
+                                <button type="button" class="reorder-btn" onclick="moveRow(this, 'down')" title="Move down">
+                                    <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+                                </button>
+                            </div>
                         </td>
                         <td data-label="ID"><code><?php echo htmlspecialchars($zone['id']); ?></code></td>
                         <td data-label="Name"><?php echo htmlspecialchars($zone['name'] ?? ''); ?></td>
                         <td data-label="Description"><?php echo htmlspecialchars($zone['description'] ?? ''); ?></td>
                         <td data-label="Color">
-                            <span class="zone-color" style="background: <?php echo htmlspecialchars($zone['color'] ?? '#6366f1'); ?>"></span>
+                            <span class="zone-color" style="background: <?php echo $zoneColor; ?>"></span>
                         </td>
                         <td data-label="Status">
                             <span class="zone-status <?php echo !empty($zone['enabled']) ? 'status-enabled' : 'status-disabled'; ?>">
@@ -260,10 +280,26 @@ $settings = $config['settings'] ?? [];
                         <td data-label="Navigation">
                             <?php echo !empty($zone['showInNav']) ? 'Visible' : 'Hidden'; ?>
                         </td>
-                        <td data-label="" class="zone-actions">
-                            <button class="btn btn-secondary btn-sm" onclick="openEditModal('<?php echo htmlspecialchars($zone['id']); ?>')">Edit</button>
-                            <button class="btn btn-secondary btn-sm" onclick="openDuplicateModal('<?php echo htmlspecialchars($zone['id']); ?>')">Duplicate</button>
-                            <button class="btn btn-danger btn-sm" onclick="openDeleteModal('<?php echo htmlspecialchars($zone['id']); ?>')">Delete</button>
+                        <td data-label="Actions" class="zone-actions">
+                            <button class="btn btn-secondary btn-sm" onclick="openEditModal('<?php echo htmlspecialchars($zone['id']); ?>')">
+                                <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+                                    <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/>
+                                </svg>
+                                Edit
+                            </button>
+                            <button class="btn btn-secondary btn-sm" onclick="openDuplicateModal('<?php echo htmlspecialchars($zone['id']); ?>')">
+                                <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+                                    <path d="M7 9a2 2 0 012-2h6a2 2 0 012 2v6a2 2 0 01-2 2H9a2 2 0 01-2-2V9z"/>
+                                    <path d="M5 3a2 2 0 00-2 2v6a2 2 0 002 2V5h8a2 2 0 00-2-2H5z"/>
+                                </svg>
+                                Copy
+                            </button>
+                            <button class="btn btn-danger btn-sm" onclick="openDeleteModal('<?php echo htmlspecialchars($zone['id']); ?>')">
+                                <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                                </svg>
+                                Delete
+                            </button>
                         </td>
                     </tr>
                     <?php endforeach; ?>
@@ -307,16 +343,28 @@ $settings = $config['settings'] ?? [];
                     </tr>
                 </thead>
                 <tbody id="quicklinks-tbody">
-                    <?php foreach ($quickLinks as $link): ?>
-                    <tr data-id="<?php echo htmlspecialchars($link['id']); ?>" class="<?php echo empty($link['enabled']) ? 'disabled' : ''; ?>">
+                    <?php foreach ($quickLinks as $link):
+                        $linkColor = htmlspecialchars($link['color'] ?? '#6366f1');
+                    ?>
+                    <tr data-id="<?php echo htmlspecialchars($link['id']); ?>"
+                        class="<?php echo empty($link['enabled']) ? 'disabled' : ''; ?>"
+                        style="--zone-color: <?php echo $linkColor; ?>">
                         <td data-label="">
                             <span class="drag-handle link-drag" title="Drag to reorder">&#9776;</span>
+                            <div class="reorder-buttons">
+                                <button type="button" class="reorder-btn" onclick="moveLinkRow(this, 'up')" title="Move up">
+                                    <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clip-rule="evenodd"/></svg>
+                                </button>
+                                <button type="button" class="reorder-btn" onclick="moveLinkRow(this, 'down')" title="Move down">
+                                    <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+                                </button>
+                            </div>
                         </td>
                         <td data-label="ID"><code><?php echo htmlspecialchars($link['id']); ?></code></td>
                         <td data-label="Name"><?php echo htmlspecialchars($link['name'] ?? ''); ?></td>
                         <td data-label="URL" class="url-cell"><a href="<?php echo htmlspecialchars($link['url'] ?? '#'); ?>" target="_blank" rel="noopener"><?php echo htmlspecialchars($link['url'] ?? ''); ?></a></td>
                         <td data-label="Color">
-                            <span class="zone-color" style="background: <?php echo htmlspecialchars($link['color'] ?? '#6366f1'); ?>"></span>
+                            <span class="zone-color" style="background: <?php echo $linkColor; ?>"></span>
                         </td>
                         <td data-label="Status">
                             <span class="zone-status <?php echo !empty($link['enabled']) ? 'status-enabled' : 'status-disabled'; ?>">
@@ -326,9 +374,19 @@ $settings = $config['settings'] ?? [];
                         <td data-label="New Tab">
                             <?php echo !empty($link['openInNewTab']) ? 'Yes' : 'No'; ?>
                         </td>
-                        <td data-label="" class="zone-actions">
-                            <button class="btn btn-secondary btn-sm" onclick="openEditLinkModal('<?php echo htmlspecialchars($link['id']); ?>')">Edit</button>
-                            <button class="btn btn-danger btn-sm" onclick="openDeleteLinkModal('<?php echo htmlspecialchars($link['id']); ?>')">Delete</button>
+                        <td data-label="Actions" class="zone-actions">
+                            <button class="btn btn-secondary btn-sm" onclick="openEditLinkModal('<?php echo htmlspecialchars($link['id']); ?>')">
+                                <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+                                    <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/>
+                                </svg>
+                                Edit
+                            </button>
+                            <button class="btn btn-danger btn-sm" onclick="openDeleteLinkModal('<?php echo htmlspecialchars($link['id']); ?>')">
+                                <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                                </svg>
+                                Delete
+                            </button>
                         </td>
                     </tr>
                     <?php endforeach; ?>
@@ -644,6 +702,22 @@ $settings = $config['settings'] ?? [];
         const zonesData = <?php echo json_encode($zones); ?>;
         const quickLinksData = <?php echo json_encode($quickLinks); ?>;
 
+        // Toggle instructions visibility on mobile
+        function toggleInstructions() {
+            const toggle = document.getElementById('instructions-toggle');
+            const instructions = document.getElementById('instructions');
+            toggle.classList.toggle('active');
+            instructions.classList.toggle('visible');
+
+            // Update button text
+            const span = toggle.querySelector('span');
+            if (instructions.classList.contains('visible')) {
+                span.textContent = 'Hide Instructions';
+            } else {
+                span.textContent = 'View Instructions';
+            }
+        }
+
         // Modal functions
         function openModal(modalId) {
             document.getElementById(modalId).classList.add('active');
@@ -900,6 +974,37 @@ $settings = $config['settings'] ?? [];
                 }
             } catch (error) {
                 showAlert('An error occurred: ' + error.message, 'error');
+            }
+        }
+
+        // Mobile reorder functions for zones
+        function moveRow(button, direction) {
+            const row = button.closest('tr');
+            const tbody = row.parentNode;
+
+            if (direction === 'up' && row.previousElementSibling) {
+                tbody.insertBefore(row, row.previousElementSibling);
+                showAlert('Zone moved up - click "Save Order" to save', 'success');
+            } else if (direction === 'down' && row.nextElementSibling) {
+                tbody.insertBefore(row.nextElementSibling, row);
+                showAlert('Zone moved down - click "Save Order" to save', 'success');
+            }
+        }
+
+        // Mobile reorder functions for quick links
+        function moveLinkRow(button, direction) {
+            const row = button.closest('tr');
+            const tbody = row.parentNode;
+            const next = row.nextElementSibling;
+            const prev = row.previousElementSibling;
+
+            // Skip empty row
+            if (direction === 'up' && prev && !prev.classList.contains('empty-row')) {
+                tbody.insertBefore(row, prev);
+                showAlert('Link moved up - click "Save Order" to save', 'success');
+            } else if (direction === 'down' && next && !next.classList.contains('empty-row')) {
+                tbody.insertBefore(next, row);
+                showAlert('Link moved down - click "Save Order" to save', 'success');
             }
         }
 
