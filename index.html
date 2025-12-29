@@ -419,16 +419,13 @@
             border-color: rgba(99, 102, 241, 0.3);
         }
 
-        /* Responsive adjustments */
+        /* Tablet adjustments */
         @media (max-width: 520px) {
             .centered-content {
                 padding: 2rem 1.5rem;
                 border-radius: 20px;
-            }
-
-            .button-grid {
-                grid-template-columns: 1fr;
-                gap: 0.75rem;
+                width: 95%;
+                max-width: none;
             }
 
             h1 {
@@ -437,6 +434,88 @@
 
             .logo {
                 max-width: 150px;
+            }
+        }
+
+        /* Mobile-specific button improvements */
+        @media (max-width: 480px) {
+            .centered-content {
+                padding: 1.5rem 1rem;
+                border-radius: 16px;
+                margin: 0.5rem;
+            }
+
+            .button-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 0.625rem;
+            }
+
+            .button {
+                padding: 1rem 0.75rem;
+                font-size: 0.875rem;
+                min-height: 56px;
+                border-radius: 10px;
+                text-align: center;
+                line-height: 1.2;
+                word-break: break-word;
+                hyphens: auto;
+            }
+
+            .button.special-link {
+                grid-column: span 1;
+            }
+
+            h1 {
+                font-size: 1.35rem;
+            }
+
+            h5 {
+                font-size: 0.875rem;
+                margin-bottom: 1rem;
+            }
+
+            .logo {
+                max-width: 130px;
+                margin-bottom: 1rem;
+            }
+
+            .admin-link {
+                margin-top: 1.25rem;
+                padding-top: 1rem;
+            }
+
+            .admin-button {
+                padding: 0.5rem 0.875rem;
+                font-size: 0.85rem;
+            }
+
+            .help-text {
+                font-size: 0.8rem;
+                margin-top: 0.75rem;
+            }
+        }
+
+        /* Extra small screens - single column with balanced buttons */
+        @media (max-width: 340px) {
+            .button-grid {
+                grid-template-columns: 1fr;
+                gap: 0.5rem;
+            }
+
+            .button {
+                min-height: 52px;
+                padding: 0.875rem 1rem;
+            }
+        }
+
+        /* Touch device optimizations */
+        @media (pointer: coarse) {
+            .button {
+                min-height: 48px;
+            }
+
+            .button:active {
+                transform: scale(0.98);
             }
         }
 
@@ -534,7 +613,7 @@
                         container.innerHTML = '<p class="help-text">No zones configured. Use Zone Manager to add zones.</p>';
                     }
 
-                    // Add special links
+                    // Add special links (Quick Links)
                     if (data.specialLinks && data.specialLinks.length > 0) {
                         data.specialLinks.forEach(link => {
                             const a = document.createElement('a');
@@ -542,8 +621,18 @@
                             a.className = 'button special-link';
                             a.textContent = link.name;
                             a.setAttribute('role', 'button');
+                            if (link.description) {
+                                a.setAttribute('title', link.description);
+                            }
+                            if (link.openInNewTab) {
+                                a.setAttribute('target', '_blank');
+                                a.setAttribute('rel', 'noopener noreferrer');
+                            }
                             if (link.color) {
                                 a.style.background = `linear-gradient(135deg, ${link.color} 0%, ${adjustColor(link.color, -20)} 100%)`;
+                                // Ensure good text contrast for custom colors
+                                const brightness = getBrightness(link.color);
+                                a.style.color = brightness > 128 ? '#0a0a0f' : '#ffffff';
                                 a.style.boxShadow = `0 4px 15px ${hexToRgba(link.color, 0.3)}`;
                             }
                             container.appendChild(a);
