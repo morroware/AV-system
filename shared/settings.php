@@ -446,6 +446,76 @@ if ($isRootEntry) {
         h2 {
             margin-bottom: 1.5rem;
         }
+        /* Drag and drop reordering styles */
+        .drag-handle {
+            cursor: grab;
+            padding: 0.5rem;
+            color: var(--text-muted, #888);
+            user-select: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2em;
+            min-width: 40px;
+        }
+        .drag-handle:hover {
+            color: var(--primary-color);
+        }
+        .drag-handle:active {
+            cursor: grabbing;
+        }
+        .config-row.dragging {
+            opacity: 0.5;
+            background: var(--primary-color);
+        }
+        .config-row.drag-over {
+            border-top: 2px solid var(--primary-color);
+        }
+        /* Reorder controls container */
+        .reorder-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            align-items: center;
+            justify-content: center;
+        }
+        .move-btn {
+            background: var(--surface-color);
+            border: 1px solid var(--primary-color);
+            color: var(--primary-color);
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+            min-width: 32px;
+            display: none;
+        }
+        .move-btn:hover {
+            background: var(--primary-color);
+            color: var(--bg-color);
+        }
+        .move-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+        /* Show move buttons on mobile, hide drag handle */
+        @media (max-width: 768px) {
+            .drag-handle {
+                display: none;
+            }
+            .move-btn {
+                display: block;
+            }
+        }
+        /* Desktop: show drag handle, hide move buttons */
+        @media (min-width: 769px) {
+            .drag-handle {
+                display: flex;
+            }
+            .move-btn {
+                display: none;
+            }
+        }
     </style>
 </head>
 <body>
@@ -481,7 +551,12 @@ if ($isRootEntry) {
                     <h2>Receivers Configuration</h2>
                     <div id="receivers-container" class="config-grid">
                         <?php $receiverIndex = 0; foreach ($formData['receivers'] as $name => $settings): ?>
-                        <div class="config-row" data-receiver-index="<?php echo $receiverIndex; ?>">
+                        <div class="config-row" data-receiver-index="<?php echo $receiverIndex; ?>" draggable="false">
+                            <div class="reorder-controls">
+                                <div class="drag-handle" title="Drag to reorder">&#9776;</div>
+                                <button type="button" class="move-btn move-up" onclick="moveReceiver(this, 'up')" title="Move up">&#9650;</button>
+                                <button type="button" class="move-btn move-down" onclick="moveReceiver(this, 'down')" title="Move down">&#9660;</button>
+                            </div>
                             <div class="config-field">
                                 <label for="receiver_name_<?php echo $receiverIndex; ?>">Receiver Name</label>
                                 <input type="text"
@@ -746,7 +821,13 @@ if ($isRootEntry) {
             const row = document.createElement('div');
             row.className = 'config-row';
             row.dataset.receiverIndex = index;
+            row.draggable = false;
             row.innerHTML = `
+                <div class="reorder-controls">
+                    <div class="drag-handle" title="Drag to reorder">&#9776;</div>
+                    <button type="button" class="move-btn move-up" onclick="moveReceiver(this, 'up')" title="Move up">&#9650;</button>
+                    <button type="button" class="move-btn move-down" onclick="moveReceiver(this, 'down')" title="Move down">&#9660;</button>
+                </div>
                 <div class="config-field">
                     <label for="receiver_name_${index}">Receiver Name</label>
                     <input type="text"
@@ -779,6 +860,7 @@ if ($isRootEntry) {
                 <button type="button" class="remove-button" onclick="removeReceiver(this)">Remove</button>
             `;
             container.appendChild(row);
+            initDragHandleForRow(row);
         }
 
         function addTransmitter() {
@@ -810,6 +892,119 @@ if ($isRootEntry) {
             `;
             container.appendChild(row);
         }
+
+        // Mobile move up/down functionality
+        function moveReceiver(button, direction) {
+            const row = button.closest('.config-row');
+            const container = row.parentNode;
+
+            if (direction === 'up' && row.previousElementSibling) {
+                container.insertBefore(row, row.previousElementSibling);
+            } else if (direction === 'down' && row.nextElementSibling) {
+                container.insertBefore(row.nextElementSibling, row);
+            }
+        }
+
+        // Drag and drop functionality
+        let draggedRow = null;
+
+        function initDragHandleForRow(row) {
+            const handle = row.querySelector('.drag-handle');
+            if (!handle) return;
+
+            handle.addEventListener('mousedown', () => {
+                row.draggable = true;
+            });
+
+            handle.addEventListener('mouseup', () => {
+                row.draggable = false;
+            });
+        }
+
+        function initReceiverDragDrop() {
+            const container = document.getElementById('receivers-container');
+
+            // Initialize all existing rows
+            container.querySelectorAll('.config-row').forEach(row => {
+                initDragHandleForRow(row);
+            });
+
+            // Drag start
+            container.addEventListener('dragstart', (e) => {
+                const row = e.target.closest('.config-row');
+                if (row) {
+                    draggedRow = row;
+                    row.classList.add('dragging');
+                    e.dataTransfer.effectAllowed = 'move';
+                }
+            });
+
+            // Drag end
+            container.addEventListener('dragend', (e) => {
+                const row = e.target.closest('.config-row');
+                if (row) {
+                    row.classList.remove('dragging');
+                    row.draggable = false;
+                    draggedRow = null;
+                }
+                // Remove any lingering drag-over classes
+                container.querySelectorAll('.drag-over').forEach(el => {
+                    el.classList.remove('drag-over');
+                });
+            });
+
+            // Drag over
+            container.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                const row = e.target.closest('.config-row');
+                if (row && row !== draggedRow) {
+                    // Remove drag-over from all rows
+                    container.querySelectorAll('.drag-over').forEach(el => {
+                        el.classList.remove('drag-over');
+                    });
+
+                    const rect = row.getBoundingClientRect();
+                    const midY = rect.top + rect.height / 2;
+
+                    if (e.clientY < midY) {
+                        row.classList.add('drag-over');
+                    } else if (row.nextElementSibling) {
+                        row.nextElementSibling.classList.add('drag-over');
+                    }
+                }
+            });
+
+            // Drag leave
+            container.addEventListener('dragleave', (e) => {
+                const row = e.target.closest('.config-row');
+                if (row) {
+                    row.classList.remove('drag-over');
+                }
+            });
+
+            // Drop
+            container.addEventListener('drop', (e) => {
+                e.preventDefault();
+                const row = e.target.closest('.config-row');
+                if (row && row !== draggedRow && draggedRow) {
+                    const rect = row.getBoundingClientRect();
+                    const midY = rect.top + rect.height / 2;
+
+                    if (e.clientY < midY) {
+                        container.insertBefore(draggedRow, row);
+                    } else {
+                        container.insertBefore(draggedRow, row.nextSibling);
+                    }
+                }
+                // Clean up
+                container.querySelectorAll('.drag-over').forEach(el => {
+                    el.classList.remove('drag-over');
+                });
+            });
+        }
+
+        // Initialize drag and drop on page load
+        document.addEventListener('DOMContentLoaded', initReceiverDragDrop);
     </script>
 </body>
 </html>
