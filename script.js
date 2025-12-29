@@ -151,10 +151,14 @@ passwordInput.addEventListener('keyup', function(event) {
 
 document.querySelectorAll('.button').forEach(button => {
     button.addEventListener('click', function(event) {
-        event.preventDefault();
-        const buttonName = this.textContent.toLowerCase().replace(' ', '');
-        const newUrl = '/' + buttonName;
-        window.location.href = newUrl;
+        // Only intercept if this button doesn't have an href (dynamically generated ones do)
+        if (!this.href || this.href === window.location.href) {
+            event.preventDefault();
+            const buttonName = this.textContent.toLowerCase().replace(' ', '');
+            const newUrl = buttonName + '/';
+            window.location.href = newUrl;
+        }
+        // Let buttons with proper hrefs navigate normally
     });
 });
 
