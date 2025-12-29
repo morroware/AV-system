@@ -94,17 +94,19 @@
             "id": "dashboard",
             "name": "Dashboard",
             "url": "/dashboard",
-            "enabled": true,
-            "showInNav": true,
-            "color": "#2196F3"
+            "enabled": false,
+            "showInNav": false,
+            "color": "#2196F3",
+            "_note": "Disabled - feature not yet implemented"
         },
         {
             "id": "osd",
             "name": "OSD",
             "url": "/osd",
-            "enabled": true,
-            "showInNav": true,
-            "color": "#2196F3"
+            "enabled": false,
+            "showInNav": false,
+            "color": "#2196F3",
+            "_note": "Disabled - feature not yet implemented"
         }
     ],
     "settings": {
