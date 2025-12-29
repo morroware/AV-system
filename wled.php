@@ -6,11 +6,13 @@
  * Accepts zone parameter to determine which zone's WLED devices to control.
  *
  * @author Seth Morrow
- * @version 3.1 (Unified Entry Point)
+ * @version 3.2 (Dynamic Zone Support)
  */
 
-// Valid zones whitelist
-$validZones = ['all', 'bowling', 'bowlingbar', 'dj', 'facility', 'jesters', 'multi', 'outside', 'rink'];
+require_once __DIR__ . '/shared/zones.php';
+
+// Get valid zones from configuration
+$validZones = getEnabledZoneIds();
 
 // Get zone from POST or GET parameter
 $zone = $_POST['zone'] ?? $_GET['zone'] ?? null;

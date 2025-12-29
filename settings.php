@@ -6,11 +6,13 @@
  * Accepts zone parameter to determine which zone's config to edit.
  *
  * @author Seth Morrow
- * @version 3.1 (Unified Entry Point)
+ * @version 3.2 (Dynamic Zone Support)
  */
 
-// Valid zones whitelist
-$validZones = ['all', 'bowling', 'bowlingbar', 'dj', 'facility', 'jesters', 'multi', 'outside', 'rink'];
+require_once __DIR__ . '/shared/zones.php';
+
+// Get valid zones from configuration
+$validZones = getEnabledZoneIds();
 
 // Get and validate zone parameter
 $zone = $_GET['zone'] ?? null;
@@ -65,14 +67,22 @@ if (!$zone || !in_array($zone, $validZones)) {
             <div class="main-container">
                 <h2>Select a Zone to Configure</h2>
                 <div class="zone-grid">
-                    <?php foreach ($validZones as $zoneName): ?>
+                    <?php
+                    $allZones = getNavigationZones();
+                    foreach ($allZones as $zoneConfig):
+                        $zoneId = $zoneConfig['id'];
+                        $zoneName = $zoneConfig['name'] ?? ucfirst($zoneId);
+                    ?>
                     <div class="zone-card">
-                        <a href="?zone=<?php echo urlencode($zoneName); ?>">
-                            <?php echo ucfirst(htmlspecialchars($zoneName)); ?>
+                        <a href="?zone=<?php echo urlencode($zoneId); ?>">
+                            <?php echo htmlspecialchars($zoneName); ?>
                         </a>
                     </div>
                     <?php endforeach; ?>
                 </div>
+                <p style="text-align: center; margin-top: 2rem;">
+                    <a href="/" style="color: var(--primary-color);">Back to Home</a>
+                </p>
             </div>
         </div>
     </body>
