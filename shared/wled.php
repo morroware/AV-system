@@ -57,6 +57,8 @@ $failureCount = 0;
 $failures = [];
 
 // Iterate through each device and send the request
+$timeout = 3; // 3 second timeout per device
+
 foreach ($wledDevices as $deviceIp) {
     $url = "http://$deviceIp$apiPath";
     $ch = curl_init($url);
@@ -64,22 +66,25 @@ foreach ($wledDevices as $deviceIp) {
     curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
     curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 2);
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
         'Content-Type: application/json',
         'Content-Length: ' . strlen($payload)
     ]);
 
     $response = curl_exec($ch);
+    $curlError = curl_error($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 
-    if ($httpCode === 200) {
+    if ($response !== false && $httpCode === 200) {
         $successCount++;
     } else {
         $failureCount++;
         $failures[] = [
             'ip' => $deviceIp,
             'http_code' => $httpCode,
-            'response' => $response
+            'response' => $response ?: $curlError
         ];
     }
 

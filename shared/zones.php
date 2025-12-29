@@ -61,7 +61,7 @@ function clearZonesConfigCache(): void
 }
 
 /**
- * Save zones configuration to JSON file
+ * Save zones configuration to JSON file with atomic write and file locking
  *
  * @param array $config The configuration to save
  * @return bool Success status
@@ -75,14 +75,58 @@ function saveZonesConfig(array $config): bool
         return false;
     }
 
-    $result = file_put_contents(ZONES_CONFIG_FILE, $json);
+    // Use atomic write with temp file to prevent corruption
+    $tempFile = ZONES_CONFIG_FILE . '.tmp.' . getmypid();
+    $lockFile = ZONES_CONFIG_FILE . '.lock';
 
-    if ($result !== false) {
-        // Clear cache so next read gets fresh data
-        clearZonesConfigCache();
+    // Acquire exclusive lock
+    $lockHandle = fopen($lockFile, 'c');
+    if ($lockHandle === false) {
+        error_log('Failed to open lock file for zones config');
+        return false;
     }
 
-    return $result !== false;
+    // Wait up to 5 seconds for lock
+    $lockAcquired = false;
+    for ($i = 0; $i < 50; $i++) {
+        if (flock($lockHandle, LOCK_EX | LOCK_NB)) {
+            $lockAcquired = true;
+            break;
+        }
+        usleep(100000); // 100ms
+    }
+
+    if (!$lockAcquired) {
+        fclose($lockHandle);
+        error_log('Failed to acquire lock for zones config (timeout)');
+        return false;
+    }
+
+    try {
+        // Write to temp file first
+        $result = file_put_contents($tempFile, $json);
+
+        if ($result === false) {
+            throw new Exception('Failed to write temp file');
+        }
+
+        // Atomic rename
+        if (!rename($tempFile, ZONES_CONFIG_FILE)) {
+            throw new Exception('Failed to rename temp file');
+        }
+
+        // Clear cache so next read gets fresh data
+        clearZonesConfigCache();
+
+        return true;
+    } catch (Exception $e) {
+        error_log('Failed to save zones config: ' . $e->getMessage());
+        @unlink($tempFile); // Clean up temp file
+        return false;
+    } finally {
+        flock($lockHandle, LOCK_UN);
+        fclose($lockHandle);
+    }
 }
 
 /**

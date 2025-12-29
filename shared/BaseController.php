@@ -219,7 +219,8 @@ class BaseController {
 
         $selectedChannel = sanitizeInput($_POST['channel'], 'int');
 
-        if (!$selectedChannel) {
+        // Use strict null check - channel 0 may be valid
+        if ($selectedChannel === null) {
             $response['message'] = "Invalid channel value";
             return $response;
         }
@@ -254,7 +255,8 @@ class BaseController {
 
         $selectedChannel = sanitizeInput($_POST['channel'], 'int');
 
-        if (!$selectedChannel || !$deviceIp) {
+        // Use strict null check for channel validation
+        if ($selectedChannel === null || !$deviceIp) {
             $response['message'] = "Invalid channel or device";
             return $response;
         }
@@ -267,18 +269,22 @@ class BaseController {
                 $channelResponse = setChannel($deviceIp, $selectedChannel);
             }
 
-            $response['message'] .= "Channel: " . ($channelResponse ? "Successfully updated" : "Update failed") . "\n";
+            $channelSuccess = (bool)$channelResponse;
+            $response['message'] .= "Channel: " . ($channelSuccess ? "Successfully updated" : "Update failed") . "\n";
 
             // Handle volume if supported
+            $volumeSuccess = true; // Default to true if not applicable
             if (supportsVolumeControl($deviceIp) && isset($_POST['volume'])) {
                 $selectedVolume = sanitizeInput($_POST['volume'], 'int', ['min' => MIN_VOLUME, 'max' => MAX_VOLUME]);
                 if ($selectedVolume !== null) {
                     $volumeResponse = setVolume($deviceIp, $selectedVolume);
-                    $response['message'] .= "Volume: " . ($volumeResponse ? "Successfully updated" : "Update failed") . "\n";
+                    $volumeSuccess = (bool)$volumeResponse;
+                    $response['message'] .= "Volume: " . ($volumeSuccess ? "Successfully updated" : "Update failed") . "\n";
                 }
             }
 
-            $response['success'] = true;
+            // Only report success if channel change succeeded (volume is secondary)
+            $response['success'] = $channelSuccess;
         } catch (Exception $e) {
             $response['message'] = "Error updating settings: " . $e->getMessage();
             logMessage("Error updating settings: " . $e->getMessage(), 'error');
@@ -330,8 +336,8 @@ class BaseController {
      *
      * @return bool True if all receivers are unreachable
      */
-    public function checkReceiversReachable() {
-        if (!defined('RECEIVERS')) {
+    public function areAllReceiversUnreachable() {
+        if (!defined('RECEIVERS') || empty(RECEIVERS)) {
             return true; // Consider unreachable if no receivers defined
         }
 
@@ -345,6 +351,15 @@ class BaseController {
         }
 
         return true; // All unreachable
+    }
+
+    /**
+     * Check if all receivers are unreachable (legacy alias)
+     * @deprecated Use areAllReceiversUnreachable() for clarity
+     * @return bool True if all receivers are unreachable
+     */
+    public function checkReceiversReachable() {
+        return $this->areAllReceiversUnreachable();
     }
 
     /**

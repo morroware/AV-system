@@ -227,7 +227,11 @@ function sendPowerCommandToAll(command, showNotification = true) {
     let promises = [];
 
     receivers.each(function() {
-        const deviceIp = $(this).find('input[name="receiver_ip"]').val();
+        // Try multiple ways to get the device IP for compatibility
+        let deviceIp = $(this).data('ip') ||
+                       $(this).find('input[name="receiver_ip"]').val() ||
+                       $(this).find('.channel-select').data('ip') ||
+                       $(this).find('.volume-slider').data('ip');
         if (deviceIp) {
             promises.push(sendPowerCommand(deviceIp, command, false)); // Don't show individual notifications
         }

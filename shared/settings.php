@@ -116,13 +116,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['restore_backup'])) {
         }
 
         // Store form data for persistence
+        // Note: We use receiver_power_index[] hidden fields to track which receivers have power enabled
+        // because unchecked checkboxes don't submit values and break array indexing
         if (isset($_POST['receiver_name'])) {
             $formData['receivers'] = [];
+            $powerEnabled = isset($_POST['receiver_power_index']) ? array_flip($_POST['receiver_power_index']) : [];
             foreach ($_POST['receiver_name'] as $index => $name) {
                 if (!empty($name)) {
                     $formData['receivers'][$name] = [
                         'ip' => $_POST['receiver_ip'][$index],
-                        'show_power' => isset($_POST['receiver_power'][$index]) && $_POST['receiver_power'][$index] == '1'
+                        'show_power' => isset($powerEnabled[$index])
                     ];
                 }
             }
@@ -141,6 +144,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['restore_backup'])) {
 
         if ($section === 'receivers' || $section === 'all') {
             $receivers = [];
+            // Track which indices have power enabled (checkbox workaround)
+            $powerEnabled = isset($_POST['receiver_power_index']) ? array_flip($_POST['receiver_power_index']) : [];
             foreach ($_POST['receiver_name'] as $index => $name) {
                 if (!empty($name) && !empty($_POST['receiver_ip'][$index])) {
                     $ip = filter_var($_POST['receiver_ip'][$index], FILTER_VALIDATE_IP);
@@ -149,7 +154,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['restore_backup'])) {
                     }
                     $receivers[$name] = [
                         'ip' => $ip,
-                        'show_power' => isset($_POST['receiver_power'][$index]) && $_POST['receiver_power'][$index] == '1'
+                        'show_power' => isset($powerEnabled[$index])
                     ];
                 }
             }
@@ -475,21 +480,21 @@ if ($isRootEntry) {
                 <div class="config-section">
                     <h2>Receivers Configuration</h2>
                     <div id="receivers-container" class="config-grid">
-                        <?php foreach ($formData['receivers'] as $name => $settings): ?>
-                        <div class="config-row">
+                        <?php $receiverIndex = 0; foreach ($formData['receivers'] as $name => $settings): ?>
+                        <div class="config-row" data-receiver-index="<?php echo $receiverIndex; ?>">
                             <div class="config-field">
-                                <label for="receiver_name_<?php echo htmlspecialchars($name); ?>">Receiver Name</label>
+                                <label for="receiver_name_<?php echo $receiverIndex; ?>">Receiver Name</label>
                                 <input type="text"
-                                       id="receiver_name_<?php echo htmlspecialchars($name); ?>"
+                                       id="receiver_name_<?php echo $receiverIndex; ?>"
                                        name="receiver_name[]"
                                        value="<?php echo htmlspecialchars($name); ?>"
                                        class="config-input"
                                        required>
                             </div>
                             <div class="config-field">
-                                <label for="receiver_ip_<?php echo htmlspecialchars($name); ?>">IP Address</label>
+                                <label for="receiver_ip_<?php echo $receiverIndex; ?>">IP Address</label>
                                 <input type="text"
-                                       id="receiver_ip_<?php echo htmlspecialchars($name); ?>"
+                                       id="receiver_ip_<?php echo $receiverIndex; ?>"
                                        name="receiver_ip[]"
                                        value="<?php echo htmlspecialchars($settings['ip']); ?>"
                                        class="config-input"
@@ -499,15 +504,19 @@ if ($isRootEntry) {
                             </div>
                             <div class="checkbox-field">
                                 <input type="checkbox"
-                                       id="receiver_power_<?php echo htmlspecialchars($name); ?>"
-                                       name="receiver_power[]"
-                                       value="1"
+                                       id="receiver_power_<?php echo $receiverIndex; ?>"
+                                       class="receiver-power-checkbox"
+                                       data-index="<?php echo $receiverIndex; ?>"
+                                       onchange="updatePowerIndex(this)"
                                        <?php echo $settings['show_power'] ? 'checked' : ''; ?>>
-                                <label for="receiver_power_<?php echo htmlspecialchars($name); ?>">Show Power Controls</label>
+                                <?php if ($settings['show_power']): ?>
+                                <input type="hidden" name="receiver_power_index[]" value="<?php echo $receiverIndex; ?>" class="power-index-input">
+                                <?php endif; ?>
+                                <label for="receiver_power_<?php echo $receiverIndex; ?>">Show Power Controls</label>
                             </div>
-                            <button type="button" class="remove-button" onclick="this.parentElement.remove()">Remove</button>
+                            <button type="button" class="remove-button" onclick="removeReceiver(this)">Remove</button>
                         </div>
-                        <?php endforeach; ?>
+                        <?php $receiverIndex++; endforeach; ?>
                     </div>
                     <button type="button" class="add-button" onclick="addReceiver()">Add Receiver</button>
                     <button type="submit" name="section" value="receivers" class="apply-button" onclick="return confirmSave('receivers')">Apply Receiver Changes</button>
@@ -705,25 +714,52 @@ if ($isRootEntry) {
             return true;
         }
 
+        // Track the next available receiver index
+        let nextReceiverIndex = <?php echo isset($receiverIndex) ? $receiverIndex : 0; ?>;
+
+        function updatePowerIndex(checkbox) {
+            const index = checkbox.dataset.index;
+            const container = checkbox.closest('.checkbox-field');
+            let hiddenInput = container.querySelector('.power-index-input');
+
+            if (checkbox.checked) {
+                if (!hiddenInput) {
+                    hiddenInput = document.createElement('input');
+                    hiddenInput.type = 'hidden';
+                    hiddenInput.name = 'receiver_power_index[]';
+                    hiddenInput.className = 'power-index-input';
+                    hiddenInput.value = index;
+                    container.insertBefore(hiddenInput, checkbox.nextSibling);
+                }
+            } else if (hiddenInput) {
+                hiddenInput.remove();
+            }
+        }
+
+        function removeReceiver(button) {
+            button.closest('.config-row').remove();
+        }
+
         function addReceiver() {
             const container = document.getElementById('receivers-container');
-            const timestamp = Date.now();
+            const index = nextReceiverIndex++;
             const row = document.createElement('div');
             row.className = 'config-row';
+            row.dataset.receiverIndex = index;
             row.innerHTML = `
                 <div class="config-field">
-                    <label for="receiver_name_${timestamp}">Receiver Name</label>
+                    <label for="receiver_name_${index}">Receiver Name</label>
                     <input type="text"
-                           id="receiver_name_${timestamp}"
+                           id="receiver_name_${index}"
                            name="receiver_name[]"
                            placeholder="Enter receiver name"
                            class="config-input"
                            required>
                 </div>
                 <div class="config-field">
-                    <label for="receiver_ip_${timestamp}">IP Address</label>
+                    <label for="receiver_ip_${index}">IP Address</label>
                     <input type="text"
-                           id="receiver_ip_${timestamp}"
+                           id="receiver_ip_${index}"
                            name="receiver_ip[]"
                            placeholder="Enter IP address"
                            class="config-input"
@@ -734,12 +770,13 @@ if ($isRootEntry) {
                 </div>
                 <div class="checkbox-field">
                     <input type="checkbox"
-                           id="receiver_power_${timestamp}"
-                           name="receiver_power[]"
-                           value="1">
-                    <label for="receiver_power_${timestamp}">Show Power Controls</label>
+                           id="receiver_power_${index}"
+                           class="receiver-power-checkbox"
+                           data-index="${index}"
+                           onchange="updatePowerIndex(this)">
+                    <label for="receiver_power_${index}">Show Power Controls</label>
                 </div>
-                <button type="button" class="remove-button" onclick="this.parentElement.remove()">Remove</button>
+                <button type="button" class="remove-button" onclick="removeReceiver(this)">Remove</button>
             `;
             container.appendChild(row);
         }
