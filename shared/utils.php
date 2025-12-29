@@ -258,15 +258,38 @@ function setChannel($deviceIp, $channel) {
 // ============================================================================
 
 /**
- * Get device model string
+ * Cache for device models to avoid redundant API calls
  */
-function getDeviceModel($deviceIp) {
+$_deviceModelCache = [];
+
+/**
+ * Get device model string with caching
+ *
+ * @param string $deviceIp Device IP address
+ * @param bool $forceRefresh Force a fresh API call
+ * @return string Device model or empty string on failure
+ */
+function getDeviceModel($deviceIp, $forceRefresh = false) {
+    global $_deviceModelCache;
+
+    // Return cached model if available
+    if (!$forceRefresh && isset($_deviceModelCache[$deviceIp])) {
+        return $_deviceModelCache[$deviceIp];
+    }
+
     try {
         $response = makeApiCall('GET', $deviceIp, 'details/device/model');
         $data = json_decode($response, true);
-        return isset($data['data']) ? $data['data'] : '';
+        $model = isset($data['data']) ? $data['data'] : '';
+
+        // Cache the result
+        $_deviceModelCache[$deviceIp] = $model;
+
+        return $model;
     } catch (Exception $e) {
         logMessage('Error getting device model: ' . $e->getMessage(), 'error');
+        // Cache empty string to avoid repeated failed calls
+        $_deviceModelCache[$deviceIp] = '';
         return '';
     }
 }
@@ -466,27 +489,42 @@ function setChannelWithoutPopping($deviceIp, $channel) {
 
 /**
  * Sanitize user input
+ *
+ * @param mixed $data The data to sanitize
+ * @param string $type The type of sanitization (int, ip, string)
+ * @param array $options Additional options for validation
+ * @return mixed Sanitized value or null on failure
  */
 function sanitizeInput($data, $type, $options = []) {
+    if ($data === null) {
+        return null;
+    }
+
     switch ($type) {
         case 'int':
-            $sanitized = filter_var($data, FILTER_VALIDATE_INT, [
-                'options' => [
-                    'min_range' => $options['min'] ?? PHP_INT_MIN,
-                    'max_range' => $options['max'] ?? PHP_INT_MAX
-                ]
-            ]);
-            break;
+            // Handle string "0" correctly
+            if (is_numeric($data)) {
+                $intVal = intval($data);
+                $min = $options['min'] ?? PHP_INT_MIN;
+                $max = $options['max'] ?? PHP_INT_MAX;
+                if ($intVal >= $min && $intVal <= $max) {
+                    return $intVal;
+                }
+            }
+            return null;
         case 'ip':
             $sanitized = filter_var($data, FILTER_VALIDATE_IP);
-            break;
+            return $sanitized !== false ? $sanitized : null;
         case 'string':
-            $sanitized = filter_var($data, FILTER_SANITIZE_STRING);
-            break;
+            // FILTER_SANITIZE_STRING is deprecated in PHP 8.1+
+            // Use htmlspecialchars for safe output and strip_tags to remove HTML
+            if (!is_string($data)) {
+                return null;
+            }
+            return htmlspecialchars(strip_tags($data), ENT_QUOTES, 'UTF-8');
         default:
-            $sanitized = null;
+            return null;
     }
-    return $sanitized !== false ? $sanitized : null;
 }
 
 // ============================================================================
