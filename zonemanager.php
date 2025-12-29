@@ -661,22 +661,36 @@ $settings = $config['settings'] ?? [];
     <div class="modal" id="delete-modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>Delete Zone</h2>
-                <button class="modal-close" onclick="closeModal('delete-modal')">&times;</button>
+                <h2 style="color: #CF6679;">Delete Zone</h2>
+                <button class="modal-close" onclick="closeModal('delete-modal')" aria-label="Close">&times;</button>
             </div>
             <form id="delete-form" onsubmit="submitDeleteForm(event)">
                 <input type="hidden" id="delete-id" name="id">
-                <p>Are you sure you want to delete the zone <strong id="delete-zone-name"></strong>?</p>
+                <div style="background: rgba(207, 102, 121, 0.1); padding: 1rem; border-radius: 8px; margin-bottom: 1rem; border: 1px solid #CF6679;">
+                    <p style="margin: 0; font-size: 1.1rem;">
+                        Are you sure you want to delete the zone <strong id="delete-zone-name" style="color: #CF6679;"></strong>?
+                    </p>
+                </div>
+                <p style="color: var(--text-secondary); margin-bottom: 1rem;">This will remove the zone from navigation. You can choose whether to keep or delete its configuration files.</p>
                 <div class="form-group">
-                    <label class="checkbox-label">
+                    <label class="checkbox-label" style="color: #CF6679; font-weight: 600;">
                         <input type="checkbox" id="delete-directory" name="deleteDirectory">
-                        Also delete zone directory and all files
+                        Also delete zone directory and all configuration files
                     </label>
-                    <p class="form-hint" style="color: #CF6679;">Warning: This action cannot be undone!</p>
+                    <p class="form-hint" style="color: #CF6679; margin-top: 0.5rem;">
+                        <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" style="vertical-align: middle; margin-right: 0.25rem;">
+                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                        </svg>
+                        This permanently deletes all zone files and cannot be undone!
+                    </p>
+                </div>
+                <div class="form-group" id="confirm-delete-group" style="display: none;">
+                    <label for="confirm-delete-input">Type "<strong id="zone-id-to-confirm"></strong>" to confirm deletion:</label>
+                    <input type="text" id="confirm-delete-input" placeholder="Type zone ID to confirm" autocomplete="off">
                 </div>
                 <div class="modal-actions">
                     <button type="button" class="btn btn-secondary" onclick="closeModal('delete-modal')">Cancel</button>
-                    <button type="submit" class="btn btn-danger">Delete Zone</button>
+                    <button type="submit" class="btn btn-danger" id="delete-submit-btn">Delete Zone</button>
                 </div>
             </form>
         </div>
@@ -734,6 +748,30 @@ $settings = $config['settings'] ?? [];
             document.getElementById('delete-id').value = zone.id;
             document.getElementById('delete-zone-name').textContent = zone.name || zone.id;
             document.getElementById('delete-directory').checked = false;
+            document.getElementById('confirm-delete-group').style.display = 'none';
+            document.getElementById('confirm-delete-input').value = '';
+            document.getElementById('zone-id-to-confirm').textContent = zone.id;
+            document.getElementById('delete-submit-btn').disabled = false;
+
+            // Show confirmation input when delete directory is checked
+            document.getElementById('delete-directory').addEventListener('change', function() {
+                const confirmGroup = document.getElementById('confirm-delete-group');
+                const submitBtn = document.getElementById('delete-submit-btn');
+                if (this.checked) {
+                    confirmGroup.style.display = 'block';
+                    submitBtn.disabled = true;
+                } else {
+                    confirmGroup.style.display = 'none';
+                    submitBtn.disabled = false;
+                }
+            });
+
+            // Enable submit when confirmation matches
+            document.getElementById('confirm-delete-input').addEventListener('input', function() {
+                const submitBtn = document.getElementById('delete-submit-btn');
+                const zoneId = document.getElementById('delete-id').value;
+                submitBtn.disabled = this.value !== zoneId;
+            });
 
             openModal('delete-modal');
         }

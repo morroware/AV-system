@@ -95,6 +95,88 @@
         #errorMessage {
             color: #CF6679;
             margin-top: 0.5rem;
+            min-height: 1.5rem;
+        }
+        .password-container {
+            position: relative;
+            width: 80%;
+            max-width: 300px;
+            display: flex;
+            align-items: center;
+        }
+        .password-container #passwordInput {
+            width: 100%;
+            padding-right: 2.5rem;
+        }
+        .toggle-password {
+            position: absolute;
+            right: 0.5rem;
+            background: transparent;
+            border: none;
+            color: #888;
+            cursor: pointer;
+            padding: 0.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .toggle-password:hover {
+            color: #00C853;
+        }
+        .attempt-counter {
+            color: #888;
+            font-size: 0.85rem;
+            margin-top: 0.25rem;
+        }
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: #00C853;
+            animation: spin 0.8s linear infinite;
+            margin-right: 0.5rem;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-5px); }
+            40%, 80% { transform: translateX(5px); }
+        }
+        .shake {
+            animation: shake 0.4s ease-in-out;
+            border-color: #CF6679 !important;
+        }
+        .zone-button-loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+        /* Tooltip styles */
+        [data-tooltip] {
+            position: relative;
+        }
+        [data-tooltip]:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 0.5rem;
+            background: #333;
+            color: #fff;
+            font-size: 0.75rem;
+            border-radius: 4px;
+            white-space: nowrap;
+            z-index: 100;
+            margin-bottom: 0.25rem;
+        }
+        /* Better focus styles */
+        #passwordInput:focus, .button:focus {
+            outline: 2px solid #00C853;
+            outline-offset: 2px;
         }
         h5 {
             color: #00C853;  /* Green heading */
@@ -113,9 +195,55 @@
         .admin-link a:hover {
             color: #00C853;
         }
+        .admin-button {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.5rem 1rem;
+            background: rgba(255,255,255,0.05);
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+        .admin-button:hover {
+            background: rgba(0, 200, 83, 0.1);
+        }
+        .help-text {
+            color: #666;
+            font-size: 0.85rem;
+            margin-top: 0.5rem;
+        }
         .loading {
             color: #888;
             font-style: italic;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+        .loading::before {
+            content: '';
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 50%;
+            border-top-color: #00C853;
+            animation: spin 0.8s linear infinite;
+        }
+        .error-loading {
+            color: #CF6679;
+            text-align: center;
+            padding: 1rem;
+        }
+        .retry-btn {
+            margin-top: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: #333;
+            border: 1px solid #555;
+            color: #fff;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .retry-btn:hover {
+            background: #444;
         }
     </style>
 </head>
@@ -125,9 +253,18 @@
             <div id="passwordForm">
                 <img src="logo.png" alt="Castle AV Controls Logo" class="logo">
                 <h5>Enter Password to Access Castle AV Controls</h5>
-                <input type="password" id="passwordInput">
-                <button id="submitPassword">Submit</button>
-                <p id="errorMessage"></p>
+                <div class="password-container">
+                    <input type="password" id="passwordInput" placeholder="Enter password" aria-label="Password" autocomplete="current-password">
+                    <button type="button" id="togglePassword" class="toggle-password" aria-label="Show password" title="Show/hide password">
+                        <svg id="eyeIcon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                            <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                    </button>
+                </div>
+                <button id="submitPassword">Sign In</button>
+                <p id="errorMessage" role="alert" aria-live="polite"></p>
+                <p id="attemptCounter" class="attempt-counter"></p>
             </div>
         </div>
 
@@ -138,18 +275,29 @@
                 <span class="loading">Loading zones...</span>
             </div>
             <div class="admin-link">
-                <a href="/zonemanager.php" title="Manage Zones">Zone Manager</a>
+                <a href="/zonemanager.php" title="Add, edit, or manage zones" class="admin-button">
+                    <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" style="vertical-align: middle; margin-right: 0.25rem;">
+                        <path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/>
+                    </svg>
+                    Zone Manager
+                </a>
             </div>
+            <p class="help-text">Select a zone above to control AV equipment in that area.</p>
         </div>
     </div>
     <script src="script.js"></script>
     <script>
         // Load zones dynamically from API
         function loadZones() {
+            const container = document.getElementById('zone-buttons');
+            container.innerHTML = '<span class="loading">Loading zones...</span>';
+
             fetch('/api/zones.php')
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) throw new Error('Network response was not ok');
+                    return response.json();
+                })
                 .then(data => {
-                    const container = document.getElementById('zone-buttons');
                     container.innerHTML = '';
 
                     // Add zone buttons
@@ -159,11 +307,21 @@
                             link.href = '/' + zone.id;
                             link.className = 'button';
                             link.textContent = zone.name || zone.id;
+                            link.setAttribute('role', 'button');
+                            link.setAttribute('aria-label', `Open ${zone.name || zone.id} zone controls`);
+                            if (zone.description) {
+                                link.setAttribute('title', zone.description);
+                            }
                             if (zone.color) {
                                 link.style.backgroundColor = zone.color;
+                                // Ensure good text contrast
+                                const brightness = getBrightness(zone.color);
+                                link.style.color = brightness > 128 ? '#000' : '#fff';
                             }
                             container.appendChild(link);
                         });
+                    } else {
+                        container.innerHTML = '<p class="help-text">No zones configured. Use Zone Manager to add zones.</p>';
                     }
 
                     // Add special links
@@ -173,6 +331,7 @@
                             a.href = link.url;
                             a.className = 'button special-link';
                             a.textContent = link.name;
+                            a.setAttribute('role', 'button');
                             if (link.color) {
                                 a.style.backgroundColor = link.color;
                             }
@@ -182,9 +341,12 @@
                 })
                 .catch(error => {
                     console.error('Failed to load zones:', error);
-                    // Fallback to static buttons if API fails
-                    const container = document.getElementById('zone-buttons');
+                    // Show error with retry option
                     container.innerHTML = `
+                        <div class="error-loading">
+                            <p>Failed to load zones. Using default zones.</p>
+                            <button class="retry-btn" onclick="loadZones()">Retry</button>
+                        </div>
                         <a href="/bowling" class="button">Bowling</a>
                         <a href="/bowlingbar" class="button">BowlingBar</a>
                         <a href="/rink" class="button">Rink</a>
@@ -197,6 +359,15 @@
                         <a href="/osd" class="button special-link">OSD</a>
                     `;
                 });
+        }
+
+        // Helper function to calculate color brightness
+        function getBrightness(hexColor) {
+            const hex = hexColor.replace('#', '');
+            const r = parseInt(hex.substr(0, 2), 16);
+            const g = parseInt(hex.substr(2, 2), 16);
+            const b = parseInt(hex.substr(4, 2), 16);
+            return (r * 299 + g * 587 + b * 114) / 1000;
         }
 
         // Load zones when container becomes visible (after password)
