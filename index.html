@@ -378,23 +378,23 @@
         }
 
         // Load zones when container becomes visible (after password)
-        const observer = new MutationObserver(function(mutations) {
+        const zoneObserver = new MutationObserver(function(mutations) {
             mutations.forEach(function(mutation) {
                 if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
-                    const container = document.querySelector('.container');
-                    if (container && container.style.display !== 'none') {
+                    const mainContainer = document.querySelector('.container');
+                    if (mainContainer && mainContainer.style.display !== 'none') {
                         loadZones();
-                        observer.disconnect();
+                        zoneObserver.disconnect();
                     }
                 }
             });
         });
 
-        const container = document.querySelector('.container');
-        if (container) {
-            observer.observe(container, { attributes: true });
+        const mainContainer = document.querySelector('.container');
+        if (mainContainer) {
+            zoneObserver.observe(mainContainer, { attributes: true });
             // Also load immediately if already visible
-            if (container.style.display !== 'none') {
+            if (mainContainer.style.display !== 'none') {
                 loadZones();
             }
         }
