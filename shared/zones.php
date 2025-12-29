@@ -6,20 +6,35 @@
  * Uses zones.json as the single source of truth for zone configuration.
  *
  * @author Seth Morrow
- * @version 1.0
+ * @version 1.1
  */
 
 define('ZONES_CONFIG_FILE', dirname(__DIR__) . '/zones.json');
 
 /**
- * Load zones configuration from JSON file
+ * Static cache for zones configuration
+ * Prevents multiple file reads within the same request
+ */
+$_zonesConfigCache = null;
+
+/**
+ * Load zones configuration from JSON file with caching
  *
+ * @param bool $forceReload Force reload from file (after save operations)
  * @return array The zones configuration or empty array on failure
  */
-function loadZonesConfig(): array
+function loadZonesConfig(bool $forceReload = false): array
 {
+    global $_zonesConfigCache;
+
+    // Return cached config if available and not forcing reload
+    if ($_zonesConfigCache !== null && !$forceReload) {
+        return $_zonesConfigCache;
+    }
+
     if (!file_exists(ZONES_CONFIG_FILE)) {
-        return ['zones' => [], 'specialLinks' => [], 'settings' => []];
+        $_zonesConfigCache = ['zones' => [], 'specialLinks' => [], 'settings' => []];
+        return $_zonesConfigCache;
     }
 
     $content = file_get_contents(ZONES_CONFIG_FILE);
@@ -27,10 +42,22 @@ function loadZonesConfig(): array
 
     if (json_last_error() !== JSON_ERROR_NONE) {
         error_log('Failed to parse zones.json: ' . json_last_error_msg());
-        return ['zones' => [], 'specialLinks' => [], 'settings' => []];
+        $_zonesConfigCache = ['zones' => [], 'specialLinks' => [], 'settings' => []];
+        return $_zonesConfigCache;
     }
 
-    return $config;
+    $_zonesConfigCache = $config;
+    return $_zonesConfigCache;
+}
+
+/**
+ * Clear the zones configuration cache
+ * Call this after modifying the zones config file
+ */
+function clearZonesConfigCache(): void
+{
+    global $_zonesConfigCache;
+    $_zonesConfigCache = null;
 }
 
 /**
@@ -49,6 +76,12 @@ function saveZonesConfig(array $config): bool
     }
 
     $result = file_put_contents(ZONES_CONFIG_FILE, $json);
+
+    if ($result !== false) {
+        // Clear cache so next read gets fresh data
+        clearZonesConfigCache();
+    }
+
     return $result !== false;
 }
 

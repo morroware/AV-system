@@ -34,11 +34,15 @@ $wirelessVolumeSettings = [
 ];
 
 $volumeStorageFile = __DIR__ . '/saved_volumes.json';
+
+// Only include debug output when LOG_LEVEL is set to 'debug'
+$debugEnabled = defined('LOG_LEVEL') && strtolower(LOG_LEVEL) === 'debug';
+$debugLog = [];
+
 $response = [
-    'success' => false, 
-    'message' => '', 
-    'results' => [],
-    'volume_debug' => []
+    'success' => false,
+    'message' => '',
+    'results' => []
 ];
 
 try {
@@ -53,33 +57,33 @@ try {
     
     // Step 1: Save volumes if switching TO wireless
     if ($source === 'wireless') {
-        $response['volume_debug'][] = "Attempting to save current volumes";
+        $debugLog[] = "Attempting to save current volumes";
         $volumeLevels = [];
-        
+
         foreach ($audioZones as $zoneName => $zoneIp) {
             $currentVolume = getCurrentVolume($zoneIp);
             if ($currentVolume !== null) {
                 $volumeLevels[$zoneName] = $currentVolume;
-                $response['volume_debug'][] = "Got volume for $zoneName: $currentVolume";
+                $debugLog[] = "Got volume for $zoneName: $currentVolume";
             } else {
-                $response['volume_debug'][] = "Failed to get volume for $zoneName";
+                $debugLog[] = "Failed to get volume for $zoneName";
             }
         }
-        
+
         if (!empty($volumeLevels)) {
             $volumeData = [
                 'timestamp' => date('Y-m-d H:i:s'),
                 'volumes' => $volumeLevels
             ];
-            
+
             $writeResult = file_put_contents($volumeStorageFile, json_encode($volumeData, JSON_PRETTY_PRINT));
             if ($writeResult !== false) {
-                $response['volume_debug'][] = "Successfully saved volumes to file: " . json_encode($volumeLevels);
+                $debugLog[] = "Successfully saved volumes to file";
             } else {
-                $response['volume_debug'][] = "Failed to write volumes to file";
+                $debugLog[] = "Failed to write volumes to file";
             }
         } else {
-            $response['volume_debug'][] = "No volumes collected to save";
+            $debugLog[] = "No volumes collected to save";
         }
     }
     
@@ -100,67 +104,67 @@ try {
     
     // Step 3: Handle volumes AFTER channel changes
     if ($source === 'wireless') {
-        $response['volume_debug'][] = "Setting wireless volumes after 1 second delay";
+        $debugLog[] = "Setting wireless volumes after 1 second delay";
         sleep(1);
-        
+
         foreach ($audioZones as $zoneName => $zoneIp) {
             if (isset($wirelessVolumeSettings[$zoneName])) {
                 $targetVolume = $wirelessVolumeSettings[$zoneName];
                 $volumeResult = setVolume($zoneIp, $targetVolume);
-                
+
                 if ($volumeResult) {
-                    $response['volume_debug'][] = "Successfully set $zoneName volume to $targetVolume";
+                    $debugLog[] = "Successfully set $zoneName volume to $targetVolume";
                 } else {
-                    $response['volume_debug'][] = "Failed to set $zoneName volume to $targetVolume";
+                    $debugLog[] = "Failed to set $zoneName volume to $targetVolume";
                 }
-                
+
                 usleep(100000);
             }
         }
-        
+
     } else if ($source === 'rockbot') {
-        $response['volume_debug'][] = "Attempting to restore saved volumes after 1 second delay";
+        $debugLog[] = "Attempting to restore saved volumes after 1 second delay";
         sleep(1);
-        
+
         if (file_exists($volumeStorageFile)) {
-            $response['volume_debug'][] = "Volume file exists, reading content";
+            $debugLog[] = "Volume file exists, reading content";
             $content = file_get_contents($volumeStorageFile);
-            
+
             if ($content !== false) {
-                $response['volume_debug'][] = "File content read successfully";
+                $debugLog[] = "File content read successfully";
                 $data = json_decode($content, true);
-                
+
                 if ($data && isset($data['volumes'])) {
                     $savedVolumes = $data['volumes'];
-                    $response['volume_debug'][] = "Found saved volumes: " . json_encode($savedVolumes);
-                    
+                    $debugLog[] = "Found saved volumes";
+
                     foreach ($audioZones as $zoneName => $zoneIp) {
                         if (isset($savedVolumes[$zoneName])) {
                             $targetVolume = $savedVolumes[$zoneName];
                             $volumeResult = setVolume($zoneIp, $targetVolume);
-                            
+
                             if ($volumeResult) {
-                                $response['volume_debug'][] = "Successfully restored $zoneName volume to $targetVolume";
+                                $debugLog[] = "Successfully restored $zoneName volume to $targetVolume";
                             } else {
-                                $response['volume_debug'][] = "Failed to restore $zoneName volume to $targetVolume";
+                                $debugLog[] = "Failed to restore $zoneName volume to $targetVolume";
                             }
-                            
+
                             usleep(100000);
                         } else {
-                            $response['volume_debug'][] = "No saved volume found for $zoneName";
+                            $debugLog[] = "No saved volume found for $zoneName";
                         }
                     }
                 } else {
-                    $response['volume_debug'][] = "Invalid JSON format in volume file";
+                    $debugLog[] = "Invalid JSON format in volume file";
                 }
             } else {
-                $response['volume_debug'][] = "Failed to read volume file content";
+                $debugLog[] = "Failed to read volume file content";
             }
         } else {
-            $response['volume_debug'][] = "Volume file does not exist: $volumeStorageFile";
+            $debugLog[] = "Volume file does not exist";
         }
     }
-    
+
     // Determine success
     if ($failureCount === 0) {
         $response['success'] = true;
@@ -172,11 +176,16 @@ try {
     } else {
         $response['message'] = "All zones failed to switch";
     }
-    
+
 } catch (Exception $e) {
     $response['success'] = false;
     $response['message'] = 'Error: ' . $e->getMessage();
-    $response['volume_debug'][] = "Exception: " . $e->getMessage();
+    $debugLog[] = "Exception: " . $e->getMessage();
+}
+
+// Only include debug output when debug mode is enabled
+if ($debugEnabled && !empty($debugLog)) {
+    $response['volume_debug'] = $debugLog;
 }
 
 echo json_encode($response);

@@ -188,7 +188,7 @@ function sendCommand(action) {
     }
 
     $.ajax({
-        url: 'api.php',
+        url: '', // Use current page - handled by BaseController
         type: 'POST',
         data: {
             device_url: transmitter.value,
@@ -197,7 +197,9 @@ function sendCommand(action) {
         dataType: 'json'
     }).then(function(response) {
         if (response.success) {
-            console.log("Remote command sent:", action);
+            showResponseMessage('Command sent: ' + action, true);
+        } else if (response.message) {
+            showError(response.message);
         }
     }).fail(function(error) {
         showError('Failed to send command');

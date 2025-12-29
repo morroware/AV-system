@@ -189,7 +189,8 @@ class BaseController {
 
         $selectedVolume = sanitizeInput($_POST['volume'], 'int', ['min' => MIN_VOLUME, 'max' => MAX_VOLUME]);
 
-        if (!$selectedVolume && $selectedVolume !== 0) {
+        // sanitizeInput returns null on failure, or the validated integer (including 0)
+        if ($selectedVolume === null) {
             $response['message'] = "Invalid volume value";
             return $response;
         }
