@@ -93,7 +93,7 @@
         {
             "id": "dashboard",
             "name": "Dashboard",
-            "url": "/dashboard",
+            "url": "dashboard/",
             "enabled": true,
             "showInNav": true,
             "color": "#2196F3"
@@ -101,7 +101,7 @@
         {
             "id": "osd",
             "name": "OSD",
-            "url": "/osd",
+            "url": "osd/",
             "enabled": true,
             "showInNav": true,
             "color": "#2196F3"

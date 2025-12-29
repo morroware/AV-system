@@ -275,7 +275,7 @@
                 <span class="loading">Loading zones...</span>
             </div>
             <div class="admin-link">
-                <a href="/zonemanager.php" title="Add, edit, or manage zones" class="admin-button">
+                <a href="zonemanager.php" title="Add, edit, or manage zones" class="admin-button">
                     <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" style="vertical-align: middle; margin-right: 0.25rem;">
                         <path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/>
                     </svg>
@@ -296,7 +296,7 @@
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 
-            fetch('/api/zones.php', { signal: controller.signal })
+            fetch('api/zones.php', { signal: controller.signal })
                 .then(response => {
                     clearTimeout(timeoutId);
                     if (!response.ok) throw new Error('Network response was not ok');
@@ -309,7 +309,7 @@
                     if (data.zones && data.zones.length > 0) {
                         data.zones.forEach(zone => {
                             const link = document.createElement('a');
-                            link.href = '/' + zone.id;
+                            link.href = zone.id + '/';
                             link.className = 'button';
                             link.textContent = zone.name || zone.id;
                             link.setAttribute('role', 'button');
@@ -354,16 +354,16 @@
                             <p>${isTimeout ? 'Loading zones timed out.' : 'Failed to load zones.'} Using default zones.</p>
                             <button class="retry-btn" onclick="loadZones()">Retry</button>
                         </div>
-                        <a href="/bowling" class="button">Bowling</a>
-                        <a href="/bowlingbar" class="button">BowlingBar</a>
-                        <a href="/rink" class="button">Rink</a>
-                        <a href="/jesters" class="button">Jesters</a>
-                        <a href="/facility" class="button">Facility</a>
-                        <a href="/outside" class="button">Outside</a>
-                        <a href="/all" class="button">ALL</a>
-                        <a href="/multi" class="button">Multi</a>
-                        <a href="/dashboard" class="button special-link">Dashboard</a>
-                        <a href="/osd" class="button special-link">OSD</a>
+                        <a href="bowling/" class="button">Bowling</a>
+                        <a href="bowlingbar/" class="button">BowlingBar</a>
+                        <a href="rink/" class="button">Rink</a>
+                        <a href="jesters/" class="button">Jesters</a>
+                        <a href="facility/" class="button">Facility</a>
+                        <a href="outside/" class="button">Outside</a>
+                        <a href="all/" class="button">ALL</a>
+                        <a href="multi/" class="button">Multi</a>
+                        <a href="dashboard/" class="button special-link">Dashboard</a>
+                        <a href="osd/" class="button special-link">OSD</a>
                     `;
                 });
         }
