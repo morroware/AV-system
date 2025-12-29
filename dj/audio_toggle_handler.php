@@ -3,7 +3,7 @@
  * Audio Toggle Handler with Volume Operation Debugging
  */
 
-require_once __DIR__ . '/utils.php';
+require_once __DIR__ . '/../shared/utils.php';
 
 header('Content-Type: application/json');
 

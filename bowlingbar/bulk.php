@@ -22,7 +22,7 @@ ini_set('display_errors', 1);
 
 // Include required files
 require_once __DIR__ . '/config.php';
-require_once __DIR__ . '/utils.php';
+require_once __DIR__ . '/../shared/utils.php';
 
 /**
  * Handle AJAX requests for bulk input switching
