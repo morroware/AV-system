@@ -1,3 +1,4 @@
+<?php $zoneName = basename(__DIR__); $settingsPath = "../settings.php?zone=" . urlencode($zoneName); ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -103,7 +104,7 @@
     <script>
         function handleLogoClick(event) {
             if (event.ctrlKey) {
-                window.location.href = 'settings.php';
+                window.location.href = '<?php echo $settingsPath; ?>';
             }
         }
     </script>

@@ -140,12 +140,21 @@ foreach ($editableFiles as $filename => $info) {
     $fileDetails[$filename] = getFileDetails($filename);
 }
 
-// Determine relative path to shared resources
-$sharedPath = str_replace(ZONE_DIR, '', dirname(__FILE__));
-if (empty($sharedPath)) {
-    $sharedPath = '.';
+// Determine zone name from ZONE_DIR
+$zoneName = basename(ZONE_DIR);
+
+// Determine paths based on how we're being accessed
+$isRootEntry = (dirname($_SERVER['SCRIPT_FILENAME']) === dirname(ZONE_DIR));
+if ($isRootEntry) {
+    $sharedPath = 'shared';
+    $zoneIndexPath = $zoneName . '/index.php';
+    $settingsPath = 'settings.php?zone=' . urlencode($zoneName);
+    $editiniPath = 'editini.php?zone=' . urlencode($zoneName);
 } else {
-    $sharedPath = ltrim($sharedPath, '/');
+    $sharedPath = '../shared';
+    $zoneIndexPath = 'index.php';
+    $settingsPath = '../settings.php?zone=' . urlencode($zoneName);
+    $editiniPath = '../editini.php?zone=' . urlencode($zoneName);
 }
 
 ?>
@@ -392,8 +401,8 @@ if (empty($sharedPath)) {
                 <h1>Configuration Files Editor</h1>
             </div>
             <div class="header-buttons">
-                <a href="index.php" class="button home-button">Control Panel</a>
-                <a href="settings.php" class="button home-button">Main Settings</a>
+                <a href="<?php echo $zoneIndexPath; ?>" class="button home-button">Control Panel</a>
+                <a href="<?php echo $settingsPath; ?>" class="button home-button">Main Settings</a>
             </div>
         </header>
 
@@ -465,7 +474,7 @@ if (empty($sharedPath)) {
 
                 <div class="file-actions">
                     <button type="submit" name="save" class="save-button">Save Changes</button>
-                    <a href="editini.php" class="cancel-button">Cancel</a>
+                    <a href="<?php echo $editiniPath; ?>" class="cancel-button">Cancel</a>
                 </div>
 
                 <div class="backup-info">
