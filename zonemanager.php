@@ -32,15 +32,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 'color' => $_POST['color'] ?? '#00C853'
             ];
 
+            // Sanitize zone ID first (same logic as addZone)
+            $zoneId = preg_replace('/[^a-z0-9]/', '', strtolower($zoneData['id']));
+            if (empty($zoneId)) {
+                $result = ['success' => false, 'message' => 'Zone ID must contain alphanumeric characters'];
+                break;
+            }
+
+            // Check if zone already exists in config
+            $existingZone = getZoneById($zoneId);
+            if ($existingZone) {
+                $result = ['success' => false, 'message' => 'Zone ID already exists'];
+                break;
+            }
+
+            // CREATE DIRECTORY FIRST to prevent race condition
+            $copyFrom = !empty($_POST['copyFrom']) ? $_POST['copyFrom'] : null;
+            $dirResult = createZoneDirectory($zoneId, $copyFrom);
+            if (!$dirResult['success']) {
+                $result = $dirResult;
+                break;
+            }
+
+            // Directory created successfully, now save to config
+            $zoneData['id'] = $zoneId; // Use sanitized ID
             $result = addZone($zoneData);
 
-            // If zone was added successfully, create the directory
-            if ($result['success']) {
-                $copyFrom = !empty($_POST['copyFrom']) ? $_POST['copyFrom'] : null;
-                $dirResult = createZoneDirectory($zoneData['id'], $copyFrom);
-                if (!$dirResult['success']) {
-                    $result['message'] .= ' (Warning: ' . $dirResult['message'] . ')';
-                }
+            // If config save failed, rollback by deleting the directory
+            if (!$result['success']) {
+                deleteDirectory(dirname(__DIR__) . '/' . $zoneId);
             }
             break;
 
