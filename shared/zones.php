@@ -397,15 +397,12 @@ function createZoneDirectory(string $zoneId, ?string $copyFrom = null): array
 
         foreach ($filesToCopy as $file) {
             if (file_exists($sourceDir . '/' . $file)) {
-                copy($sourceDir . '/' . $file, $zoneDir . '/' . $file);
+                if (!copy($sourceDir . '/' . $file, $zoneDir . '/' . $file)) {
+                    // Rollback: delete the incomplete zone directory
+                    deleteDirectory($zoneDir);
+                    return ['success' => false, 'message' => 'Failed to copy file: ' . $file];
+                }
             }
-        }
-
-        // Update the template.php with new zone name
-        $templateFile = $zoneDir . '/template.php';
-        if (file_exists($templateFile)) {
-            $content = file_get_contents($templateFile);
-            // The template will auto-detect zone name from directory
         }
 
         return ['success' => true, 'message' => 'Zone directory created from template'];
@@ -419,7 +416,11 @@ function createZoneDirectory(string $zoneId, ?string $copyFrom = null): array
         $files = scandir($templateDir);
         foreach ($files as $file) {
             if ($file === '.' || $file === '..') continue;
-            copy($templateDir . '/' . $file, $zoneDir . '/' . $file);
+            if (!copy($templateDir . '/' . $file, $zoneDir . '/' . $file)) {
+                // Rollback: delete the incomplete zone directory
+                deleteDirectory($zoneDir);
+                return ['success' => false, 'message' => 'Failed to copy template file: ' . $file];
+            }
         }
     } else {
         // Create minimal default files
@@ -666,12 +667,24 @@ function duplicateZone(string $sourceZoneId, string $newZoneId, string $newZoneN
         return ['success' => false, 'message' => 'Invalid zone ID'];
     }
 
-    // Check if new zone already exists
+    // Check if new zone already exists in config
     if (getZoneById($newZoneId)) {
         return ['success' => false, 'message' => 'Zone ID already exists'];
     }
 
-    // Add to configuration
+    // Check if directory already exists on filesystem
+    $baseDir = dirname(__DIR__);
+    if (is_dir($baseDir . '/' . $newZoneId)) {
+        return ['success' => false, 'message' => 'Zone directory already exists on filesystem'];
+    }
+
+    // CREATE DIRECTORY FIRST to prevent race condition
+    $dirResult = createZoneDirectory($newZoneId, $sourceZoneId);
+    if (!$dirResult['success']) {
+        return $dirResult;
+    }
+
+    // Directory created successfully, now add to configuration
     $result = addZone([
         'id' => $newZoneId,
         'name' => $newZoneName ?: ucfirst($newZoneId),
@@ -682,15 +695,9 @@ function duplicateZone(string $sourceZoneId, string $newZoneId, string $newZoneN
     ]);
 
     if (!$result['success']) {
+        // Rollback: delete the directory we just created
+        deleteDirectory($baseDir . '/' . $newZoneId);
         return $result;
-    }
-
-    // Create directory with source files
-    $dirResult = createZoneDirectory($newZoneId, $sourceZoneId);
-    if (!$dirResult['success']) {
-        // Rollback the zone addition
-        removeZone($newZoneId);
-        return $dirResult;
     }
 
     return ['success' => true, 'message' => 'Zone duplicated successfully'];

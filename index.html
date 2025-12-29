@@ -287,13 +287,18 @@
     </div>
     <script src="script.js"></script>
     <script>
-        // Load zones dynamically from API
+        // Load zones dynamically from API with timeout protection
         function loadZones() {
             const container = document.getElementById('zone-buttons');
             container.innerHTML = '<span class="loading">Loading zones...</span>';
 
-            fetch('/api/zones.php')
+            // Create abort controller for timeout
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+            fetch('/api/zones.php', { signal: controller.signal })
                 .then(response => {
+                    clearTimeout(timeoutId);
                     if (!response.ok) throw new Error('Network response was not ok');
                     return response.json();
                 })
@@ -340,11 +345,13 @@
                     }
                 })
                 .catch(error => {
-                    console.error('Failed to load zones:', error);
+                    clearTimeout(timeoutId);
+                    const isTimeout = error.name === 'AbortError';
+                    console.error('Failed to load zones:', isTimeout ? 'Request timed out' : error);
                     // Show error with retry option
                     container.innerHTML = `
                         <div class="error-loading">
-                            <p>Failed to load zones. Using default zones.</p>
+                            <p>${isTimeout ? 'Loading zones timed out.' : 'Failed to load zones.'} Using default zones.</p>
                             <button class="retry-btn" onclick="loadZones()">Retry</button>
                         </div>
                         <a href="/bowling" class="button">Bowling</a>
