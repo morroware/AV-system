@@ -168,7 +168,24 @@ h2 {
 .header-buttons {
     display: flex;
     justify-content: center;
-    gap: 1rem;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+/* Button group container for visual grouping */
+.header-buttons .button-group {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+/* Divider between button groups */
+.header-buttons .button-divider {
+    width: 1px;
+    height: 24px;
+    background: var(--surface-border);
+    margin: 0 0.25rem;
 }
 
 /* Main container layout */
@@ -809,12 +826,35 @@ footer {
     }
 
     .header-buttons {
-        flex-direction: column;
-        gap: 0.75rem;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        justify-content: center;
+    }
+
+    .header-buttons .button-group {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .header-buttons .button-divider {
+        display: none;
     }
 
     .button {
-        width: 100%;
+        min-width: auto;
+        padding: 0.65rem 1rem;
+        font-size: 0.875rem;
+    }
+
+    /* Hide button text on small screens, show only icons */
+    .header-buttons .button .btn-text {
+        display: none;
+    }
+
+    .header-buttons .button {
+        min-width: auto;
+        padding: 0.75rem;
     }
 
     .power-buttons {
@@ -1137,6 +1177,80 @@ a:focus-visible {
 }
 
 /* Settings button style */
+.settings-button {
+    background: linear-gradient(135deg, #4b5563 0%, #374151 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(75, 85, 99, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.settings-button:hover {
+    background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(75, 85, 99, 0.5);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.settings-button svg {
+    width: 18px;
+    height: 18px;
+    transition: transform var(--transition-normal);
+}
+
+.settings-button:hover svg {
+    transform: rotate(45deg);
+}
+
+/* Bulk switcher button */
+.bulk-button {
+    background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.bulk-button:hover {
+    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(124, 58, 237, 0.5);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.bulk-button svg {
+    width: 18px;
+    height: 18px;
+}
+
+/* Power buttons - improved styling */
+.power-on-button {
+    background: linear-gradient(135deg, var(--success-color) 0%, #059669 100%);
+    color: white;
+    box-shadow: 0 4px 15px var(--success-glow);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.power-on-button:hover {
+    background: linear-gradient(135deg, var(--success-light) 0%, var(--success-color) 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 25px var(--success-glow);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.power-off-button {
+    background: linear-gradient(135deg, var(--error-color) 0%, #dc2626 100%);
+    color: white;
+    box-shadow: 0 4px 15px var(--error-glow);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.power-off-button:hover {
+    background: linear-gradient(135deg, var(--error-light) 0%, var(--error-color) 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 25px var(--error-glow);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Legacy support for inline styles */
 .button[style*="background-color: #666"] {
     background: linear-gradient(135deg, #4b5563 0%, #374151 100%) !important;
     color: white !important;
