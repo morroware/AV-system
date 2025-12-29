@@ -1,0 +1,943 @@
+<?php
+/**
+ * Zone Manager - Add, Edit, Remove, and Duplicate Zones
+ *
+ * Provides a user-friendly interface for managing AV system zones.
+ * All zone configuration is stored in zones.json.
+ *
+ * @author Seth Morrow
+ * @version 1.0
+ */
+
+error_reporting(E_ALL);
+ini_set('display_errors', '0');
+
+require_once __DIR__ . '/shared/zones.php';
+
+// Handle AJAX requests
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
+    header('Content-Type: application/json');
+
+    $action = $_POST['action'];
+    $result = ['success' => false, 'message' => 'Unknown action'];
+
+    switch ($action) {
+        case 'add':
+            $zoneData = [
+                'id' => $_POST['id'] ?? '',
+                'name' => $_POST['name'] ?? '',
+                'description' => $_POST['description'] ?? '',
+                'showInNav' => isset($_POST['showInNav']),
+                'icon' => $_POST['icon'] ?? 'default',
+                'color' => $_POST['color'] ?? '#00C853'
+            ];
+
+            $result = addZone($zoneData);
+
+            // If zone was added successfully, create the directory
+            if ($result['success']) {
+                $copyFrom = !empty($_POST['copyFrom']) ? $_POST['copyFrom'] : null;
+                $dirResult = createZoneDirectory($zoneData['id'], $copyFrom);
+                if (!$dirResult['success']) {
+                    $result['message'] .= ' (Warning: ' . $dirResult['message'] . ')';
+                }
+            }
+            break;
+
+        case 'update':
+            $zoneId = $_POST['id'] ?? '';
+            $updates = [
+                'name' => $_POST['name'] ?? '',
+                'description' => $_POST['description'] ?? '',
+                'enabled' => isset($_POST['enabled']),
+                'showInNav' => isset($_POST['showInNav']),
+                'icon' => $_POST['icon'] ?? 'default',
+                'color' => $_POST['color'] ?? '#00C853'
+            ];
+            $result = updateZone($zoneId, $updates);
+            break;
+
+        case 'delete':
+            $zoneId = $_POST['id'] ?? '';
+            $deleteDir = isset($_POST['deleteDirectory']);
+            $result = removeZone($zoneId, $deleteDir);
+            break;
+
+        case 'duplicate':
+            $sourceId = $_POST['sourceId'] ?? '';
+            $newId = $_POST['newId'] ?? '';
+            $newName = $_POST['newName'] ?? '';
+            $result = duplicateZone($sourceId, $newId, $newName);
+            break;
+
+        case 'reorder':
+            $orderData = $_POST['order'] ?? '';
+            $orderedIds = json_decode($orderData, true);
+            if (is_array($orderedIds)) {
+                $result = reorderZones($orderedIds);
+            } else {
+                $result = ['success' => false, 'message' => 'Invalid order data'];
+            }
+            break;
+
+        case 'getZones':
+            $config = loadZonesConfig();
+            $result = ['success' => true, 'zones' => $config['zones'] ?? []];
+            break;
+    }
+
+    echo json_encode($result);
+    exit;
+}
+
+// Load current configuration for display
+$config = loadZonesConfig();
+$zones = $config['zones'] ?? [];
+$settings = $config['settings'] ?? [];
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zone Manager - Castle AV Controls</title>
+    <link rel="stylesheet" href="shared/styles.css">
+    <style>
+        .zone-manager {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .manager-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .manager-header h1 {
+            margin: 0;
+            color: var(--primary-color);
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: #000;
+        }
+
+        .btn-primary:hover {
+            background: #00E676;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: var(--surface-color);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background: var(--hover-color);
+        }
+
+        .btn-danger {
+            background: #CF6679;
+            color: #000;
+        }
+
+        .btn-danger:hover {
+            background: #E57373;
+        }
+
+        .btn-sm {
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+        }
+
+        .zones-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--surface-color);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .zones-table th,
+        .zones-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .zones-table th {
+            background: var(--hover-color);
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+
+        .zones-table tr:hover {
+            background: var(--hover-color);
+        }
+
+        .zones-table tr.disabled {
+            opacity: 0.5;
+        }
+
+        .zone-color {
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            display: inline-block;
+        }
+
+        .zone-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+        }
+
+        .status-enabled {
+            background: rgba(0, 200, 83, 0.2);
+            color: #00C853;
+        }
+
+        .status-disabled {
+            background: rgba(207, 102, 121, 0.2);
+            color: #CF6679;
+        }
+
+        .zone-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--surface-color);
+            padding: 2rem;
+            border-radius: 12px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            color: var(--primary-color);
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0.5rem;
+        }
+
+        .modal-close:hover {
+            color: var(--text-primary);
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .form-group input[type="text"],
+        .form-group input[type="color"],
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background: var(--background-color);
+            color: var(--text-primary);
+            font-size: 1rem;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        .form-group input[type="color"] {
+            height: 50px;
+            padding: 0.25rem;
+            cursor: pointer;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .form-group .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            cursor: pointer;
+        }
+
+        .form-group input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        .form-hint {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+            margin-top: 2rem;
+        }
+
+        .alert {
+            padding: 1rem;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+        }
+
+        .alert-success {
+            background: rgba(0, 200, 83, 0.2);
+            border: 1px solid #00C853;
+            color: #00C853;
+        }
+
+        .alert-error {
+            background: rgba(207, 102, 121, 0.2);
+            border: 1px solid #CF6679;
+            color: #CF6679;
+        }
+
+        .drag-handle {
+            cursor: grab;
+            color: var(--text-secondary);
+            padding: 0.5rem;
+        }
+
+        .drag-handle:active {
+            cursor: grabbing;
+        }
+
+        .dragging {
+            opacity: 0.5;
+            background: var(--hover-color);
+        }
+
+        .instructions {
+            background: var(--surface-color);
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            border-left: 4px solid var(--primary-color);
+        }
+
+        .instructions h3 {
+            margin-top: 0;
+            color: var(--primary-color);
+        }
+
+        .instructions ul {
+            margin: 0;
+            padding-left: 1.5rem;
+        }
+
+        .instructions li {
+            margin-bottom: 0.5rem;
+            color: var(--text-secondary);
+        }
+
+        @media (max-width: 768px) {
+            .zones-table {
+                display: block;
+                overflow-x: auto;
+            }
+
+            .manager-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .header-actions {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="content-wrapper">
+        <header>
+            <div class="logo-title-group">
+                <div class="logo-container">
+                    <a href="/">
+                        <img src="logo.png" alt="Castle AV Controls Logo" class="logo">
+                    </a>
+                </div>
+                <h1>Zone Manager</h1>
+            </div>
+
+            <div class="header-buttons">
+                <a href="/" class="button home-button">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
+                    </svg>
+                    Home
+                </a>
+            </div>
+        </header>
+
+        <div class="zone-manager">
+            <div id="alert-container"></div>
+
+            <div class="instructions">
+                <h3>Zone Management Instructions</h3>
+                <ul>
+                    <li><strong>Add Zone:</strong> Create a new zone with custom settings. Optionally copy configuration from an existing zone.</li>
+                    <li><strong>Edit Zone:</strong> Modify zone name, description, visibility, and appearance settings.</li>
+                    <li><strong>Duplicate Zone:</strong> Create a complete copy of an existing zone with all its configuration files.</li>
+                    <li><strong>Delete Zone:</strong> Remove a zone from the system. You can choose to keep or delete the zone's files.</li>
+                    <li><strong>Reorder:</strong> Drag and drop zones to change their display order in the navigation.</li>
+                    <li><strong>Enable/Disable:</strong> Toggle zones on or off without deleting them.</li>
+                </ul>
+            </div>
+
+            <div class="manager-header">
+                <h2>Configured Zones</h2>
+                <div class="header-actions">
+                    <button class="btn btn-primary" onclick="openAddModal()">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+                        </svg>
+                        Add New Zone
+                    </button>
+                    <button class="btn btn-secondary" onclick="saveOrder()">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" />
+                        </svg>
+                        Save Order
+                    </button>
+                </div>
+            </div>
+
+            <table class="zones-table" id="zones-table">
+                <thead>
+                    <tr>
+                        <th width="40"></th>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Description</th>
+                        <th>Color</th>
+                        <th>Status</th>
+                        <th>Navigation</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="zones-tbody">
+                    <?php foreach ($zones as $zone): ?>
+                    <tr data-id="<?php echo htmlspecialchars($zone['id']); ?>" class="<?php echo empty($zone['enabled']) ? 'disabled' : ''; ?>">
+                        <td>
+                            <span class="drag-handle" title="Drag to reorder">&#9776;</span>
+                        </td>
+                        <td><code><?php echo htmlspecialchars($zone['id']); ?></code></td>
+                        <td><?php echo htmlspecialchars($zone['name'] ?? ''); ?></td>
+                        <td><?php echo htmlspecialchars($zone['description'] ?? ''); ?></td>
+                        <td>
+                            <span class="zone-color" style="background: <?php echo htmlspecialchars($zone['color'] ?? '#00C853'); ?>"></span>
+                        </td>
+                        <td>
+                            <span class="zone-status <?php echo !empty($zone['enabled']) ? 'status-enabled' : 'status-disabled'; ?>">
+                                <?php echo !empty($zone['enabled']) ? 'Enabled' : 'Disabled'; ?>
+                            </span>
+                        </td>
+                        <td>
+                            <?php echo !empty($zone['showInNav']) ? 'Visible' : 'Hidden'; ?>
+                        </td>
+                        <td class="zone-actions">
+                            <button class="btn btn-secondary btn-sm" onclick="openEditModal('<?php echo htmlspecialchars($zone['id']); ?>')">Edit</button>
+                            <button class="btn btn-secondary btn-sm" onclick="openDuplicateModal('<?php echo htmlspecialchars($zone['id']); ?>')">Duplicate</button>
+                            <button class="btn btn-danger btn-sm" onclick="openDeleteModal('<?php echo htmlspecialchars($zone['id']); ?>')">Delete</button>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Add Zone Modal -->
+    <div class="modal" id="add-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Add New Zone</h2>
+                <button class="modal-close" onclick="closeModal('add-modal')">&times;</button>
+            </div>
+            <form id="add-form" onsubmit="submitAddForm(event)">
+                <div class="form-group">
+                    <label for="add-id">Zone ID</label>
+                    <input type="text" id="add-id" name="id" required pattern="[a-z0-9]+" placeholder="e.g., lounge">
+                    <p class="form-hint">Lowercase letters and numbers only. This becomes the folder name.</p>
+                </div>
+                <div class="form-group">
+                    <label for="add-name">Display Name</label>
+                    <input type="text" id="add-name" name="name" required placeholder="e.g., VIP Lounge">
+                </div>
+                <div class="form-group">
+                    <label for="add-description">Description</label>
+                    <textarea id="add-description" name="description" placeholder="Optional description of this zone"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="add-color">Button Color</label>
+                    <input type="color" id="add-color" name="color" value="#00C853">
+                </div>
+                <div class="form-group">
+                    <label for="add-copyFrom">Copy Configuration From</label>
+                    <select id="add-copyFrom" name="copyFrom">
+                        <option value="">Start with empty configuration</option>
+                        <?php foreach ($zones as $zone): ?>
+                        <option value="<?php echo htmlspecialchars($zone['id']); ?>">
+                            <?php echo htmlspecialchars($zone['name'] ?? $zone['id']); ?>
+                        </option>
+                        <?php endforeach; ?>
+                    </select>
+                    <p class="form-hint">Copy receivers, transmitters, and other settings from an existing zone.</p>
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="showInNav" checked>
+                        Show in navigation
+                    </label>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('add-modal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Zone</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Zone Modal -->
+    <div class="modal" id="edit-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Edit Zone</h2>
+                <button class="modal-close" onclick="closeModal('edit-modal')">&times;</button>
+            </div>
+            <form id="edit-form" onsubmit="submitEditForm(event)">
+                <input type="hidden" id="edit-id" name="id">
+                <div class="form-group">
+                    <label>Zone ID</label>
+                    <input type="text" id="edit-id-display" disabled>
+                    <p class="form-hint">Zone ID cannot be changed after creation.</p>
+                </div>
+                <div class="form-group">
+                    <label for="edit-name">Display Name</label>
+                    <input type="text" id="edit-name" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-description">Description</label>
+                    <textarea id="edit-description" name="description"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="edit-color">Button Color</label>
+                    <input type="color" id="edit-color" name="color">
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="edit-enabled" name="enabled">
+                        Zone Enabled
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="edit-showInNav" name="showInNav">
+                        Show in navigation
+                    </label>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('edit-modal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Duplicate Zone Modal -->
+    <div class="modal" id="duplicate-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Duplicate Zone</h2>
+                <button class="modal-close" onclick="closeModal('duplicate-modal')">&times;</button>
+            </div>
+            <form id="duplicate-form" onsubmit="submitDuplicateForm(event)">
+                <input type="hidden" id="duplicate-sourceId" name="sourceId">
+                <div class="form-group">
+                    <label>Source Zone</label>
+                    <input type="text" id="duplicate-source-display" disabled>
+                </div>
+                <div class="form-group">
+                    <label for="duplicate-newId">New Zone ID</label>
+                    <input type="text" id="duplicate-newId" name="newId" required pattern="[a-z0-9]+" placeholder="e.g., lounge2">
+                    <p class="form-hint">Lowercase letters and numbers only.</p>
+                </div>
+                <div class="form-group">
+                    <label for="duplicate-newName">New Display Name</label>
+                    <input type="text" id="duplicate-newName" name="newName" required placeholder="e.g., VIP Lounge 2">
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('duplicate-modal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Duplicate Zone</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Delete Zone Modal -->
+    <div class="modal" id="delete-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Delete Zone</h2>
+                <button class="modal-close" onclick="closeModal('delete-modal')">&times;</button>
+            </div>
+            <form id="delete-form" onsubmit="submitDeleteForm(event)">
+                <input type="hidden" id="delete-id" name="id">
+                <p>Are you sure you want to delete the zone <strong id="delete-zone-name"></strong>?</p>
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="delete-directory" name="deleteDirectory">
+                        Also delete zone directory and all files
+                    </label>
+                    <p class="form-hint" style="color: #CF6679;">Warning: This action cannot be undone!</p>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('delete-modal')">Cancel</button>
+                    <button type="submit" class="btn btn-danger">Delete Zone</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Zone data from PHP
+        const zonesData = <?php echo json_encode($zones); ?>;
+
+        // Modal functions
+        function openModal(modalId) {
+            document.getElementById(modalId).classList.add('active');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+
+        function openAddModal() {
+            document.getElementById('add-form').reset();
+            openModal('add-modal');
+        }
+
+        function openEditModal(zoneId) {
+            const zone = zonesData.find(z => z.id === zoneId);
+            if (!zone) return;
+
+            document.getElementById('edit-id').value = zone.id;
+            document.getElementById('edit-id-display').value = zone.id;
+            document.getElementById('edit-name').value = zone.name || '';
+            document.getElementById('edit-description').value = zone.description || '';
+            document.getElementById('edit-color').value = zone.color || '#00C853';
+            document.getElementById('edit-enabled').checked = zone.enabled !== false;
+            document.getElementById('edit-showInNav').checked = zone.showInNav !== false;
+
+            openModal('edit-modal');
+        }
+
+        function openDuplicateModal(zoneId) {
+            const zone = zonesData.find(z => z.id === zoneId);
+            if (!zone) return;
+
+            document.getElementById('duplicate-sourceId').value = zone.id;
+            document.getElementById('duplicate-source-display').value = zone.name || zone.id;
+            document.getElementById('duplicate-newId').value = '';
+            document.getElementById('duplicate-newName').value = '';
+
+            openModal('duplicate-modal');
+        }
+
+        function openDeleteModal(zoneId) {
+            const zone = zonesData.find(z => z.id === zoneId);
+            if (!zone) return;
+
+            document.getElementById('delete-id').value = zone.id;
+            document.getElementById('delete-zone-name').textContent = zone.name || zone.id;
+            document.getElementById('delete-directory').checked = false;
+
+            openModal('delete-modal');
+        }
+
+        // Alert functions
+        function showAlert(message, type = 'success') {
+            const container = document.getElementById('alert-container');
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.textContent = message;
+            container.appendChild(alert);
+
+            setTimeout(() => {
+                alert.remove();
+            }, 5000);
+        }
+
+        // Form submission functions
+        async function submitAddForm(event) {
+            event.preventDefault();
+            const form = event.target;
+            const formData = new FormData(form);
+            formData.append('action', 'add');
+
+            try {
+                const response = await fetch('', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    showAlert(result.message);
+                    closeModal('add-modal');
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    showAlert(result.message, 'error');
+                }
+            } catch (error) {
+                showAlert('An error occurred: ' + error.message, 'error');
+            }
+        }
+
+        async function submitEditForm(event) {
+            event.preventDefault();
+            const form = event.target;
+            const formData = new FormData(form);
+            formData.append('action', 'update');
+
+            try {
+                const response = await fetch('', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    showAlert(result.message);
+                    closeModal('edit-modal');
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    showAlert(result.message, 'error');
+                }
+            } catch (error) {
+                showAlert('An error occurred: ' + error.message, 'error');
+            }
+        }
+
+        async function submitDuplicateForm(event) {
+            event.preventDefault();
+            const form = event.target;
+            const formData = new FormData(form);
+            formData.append('action', 'duplicate');
+
+            try {
+                const response = await fetch('', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    showAlert(result.message);
+                    closeModal('duplicate-modal');
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    showAlert(result.message, 'error');
+                }
+            } catch (error) {
+                showAlert('An error occurred: ' + error.message, 'error');
+            }
+        }
+
+        async function submitDeleteForm(event) {
+            event.preventDefault();
+            const form = event.target;
+            const formData = new FormData(form);
+            formData.append('action', 'delete');
+
+            try {
+                const response = await fetch('', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    showAlert(result.message);
+                    closeModal('delete-modal');
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    showAlert(result.message, 'error');
+                }
+            } catch (error) {
+                showAlert('An error occurred: ' + error.message, 'error');
+            }
+        }
+
+        // Drag and drop reordering
+        let draggedRow = null;
+
+        document.querySelectorAll('.drag-handle').forEach(handle => {
+            const row = handle.closest('tr');
+
+            handle.addEventListener('mousedown', () => {
+                row.draggable = true;
+            });
+
+            handle.addEventListener('mouseup', () => {
+                row.draggable = false;
+            });
+        });
+
+        document.getElementById('zones-tbody').addEventListener('dragstart', (e) => {
+            if (e.target.tagName === 'TR') {
+                draggedRow = e.target;
+                e.target.classList.add('dragging');
+            }
+        });
+
+        document.getElementById('zones-tbody').addEventListener('dragend', (e) => {
+            if (e.target.tagName === 'TR') {
+                e.target.classList.remove('dragging');
+                e.target.draggable = false;
+                draggedRow = null;
+            }
+        });
+
+        document.getElementById('zones-tbody').addEventListener('dragover', (e) => {
+            e.preventDefault();
+            const row = e.target.closest('tr');
+            if (row && row !== draggedRow) {
+                const rect = row.getBoundingClientRect();
+                const midY = rect.top + rect.height / 2;
+                if (e.clientY < midY) {
+                    row.parentNode.insertBefore(draggedRow, row);
+                } else {
+                    row.parentNode.insertBefore(draggedRow, row.nextSibling);
+                }
+            }
+        });
+
+        async function saveOrder() {
+            const rows = document.querySelectorAll('#zones-tbody tr');
+            const order = Array.from(rows).map(row => row.dataset.id);
+
+            const formData = new FormData();
+            formData.append('action', 'reorder');
+            formData.append('order', JSON.stringify(order));
+
+            try {
+                const response = await fetch('', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    showAlert('Zone order saved successfully');
+                } else {
+                    showAlert(result.message, 'error');
+                }
+            } catch (error) {
+                showAlert('An error occurred: ' + error.message, 'error');
+            }
+        }
+
+        // Close modals on escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                document.querySelectorAll('.modal.active').forEach(modal => {
+                    modal.classList.remove('active');
+                });
+            }
+        });
+
+        // Close modals on background click
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.classList.remove('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

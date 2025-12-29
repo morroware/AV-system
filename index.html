@@ -22,7 +22,7 @@
             border-radius: 10px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
             max-width: 90%;
-            width: 400px;
+            width: 500px;
         }
         .logo {
             max-width: 200px;
@@ -41,16 +41,23 @@
         }
         .button {
             display: block;
-            padding: 0.5rem 1rem;
+            padding: 0.75rem 1rem;
             background-color: #00C853;  /* Bright green */
             color: #000000;  /* Black text for contrast */
             text-decoration: none;
             border-radius: 5px;
-            transition: background-color 0.3s;
+            transition: all 0.3s ease;
             font-weight: bold;
         }
         .button:hover {
             background-color: #00E676;  /* Lighter green on hover */
+            transform: translateY(-2px);
+        }
+        .button.special-link {
+            background-color: #2196F3;
+        }
+        .button.special-link:hover {
+            background-color: #42A5F5;
         }
         #passwordDialog {
             display: flex;
@@ -93,6 +100,23 @@
             color: #00C853;  /* Green heading */
             margin-bottom: 0.5rem;
         }
+        .admin-link {
+            margin-top: 1.5rem;
+            padding-top: 1rem;
+            border-top: 1px solid #333;
+        }
+        .admin-link a {
+            color: #888;
+            text-decoration: none;
+            font-size: 0.875rem;
+        }
+        .admin-link a:hover {
+            color: #00C853;
+        }
+        .loading {
+            color: #888;
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
@@ -110,20 +134,92 @@
         <div class="container" style="display: none;">
             <img src="logo.png" alt="Castle AV Controls Logo" class="logo">
             <h1>Castle AV Controls</h1>
-            <div class="button-grid">
-                <a href="/bowling" class="button">Bowling</a>
-		<a href="/bowlingbar" class="button">BowlingBar</a>
-                <a href="/rink" class="button">Rink</a>
-                <a href="/jesters" class="button">Jesters</a>
-		<a href="/Facility" class="button">Facility</a>
-		<a href="/outside" class="button">Outside</a>
-		<a href="/dashboard" class="button">Dashboard</a>
-                <a href="/osd" class="button">OSD</a>
-		<a href="/all" class="button">ALL</a>
-		<a href="/multi" class="button">Multi</a>
+            <div class="button-grid" id="zone-buttons">
+                <span class="loading">Loading zones...</span>
+            </div>
+            <div class="admin-link">
+                <a href="/zonemanager.php" title="Manage Zones">Zone Manager</a>
             </div>
         </div>
     </div>
     <script src="script.js"></script>
+    <script>
+        // Load zones dynamically from API
+        function loadZones() {
+            fetch('/api/zones.php')
+                .then(response => response.json())
+                .then(data => {
+                    const container = document.getElementById('zone-buttons');
+                    container.innerHTML = '';
+
+                    // Add zone buttons
+                    if (data.zones && data.zones.length > 0) {
+                        data.zones.forEach(zone => {
+                            const link = document.createElement('a');
+                            link.href = '/' + zone.id;
+                            link.className = 'button';
+                            link.textContent = zone.name || zone.id;
+                            if (zone.color) {
+                                link.style.backgroundColor = zone.color;
+                            }
+                            container.appendChild(link);
+                        });
+                    }
+
+                    // Add special links
+                    if (data.specialLinks && data.specialLinks.length > 0) {
+                        data.specialLinks.forEach(link => {
+                            const a = document.createElement('a');
+                            a.href = link.url;
+                            a.className = 'button special-link';
+                            a.textContent = link.name;
+                            if (link.color) {
+                                a.style.backgroundColor = link.color;
+                            }
+                            container.appendChild(a);
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Failed to load zones:', error);
+                    // Fallback to static buttons if API fails
+                    const container = document.getElementById('zone-buttons');
+                    container.innerHTML = `
+                        <a href="/bowling" class="button">Bowling</a>
+                        <a href="/bowlingbar" class="button">BowlingBar</a>
+                        <a href="/rink" class="button">Rink</a>
+                        <a href="/jesters" class="button">Jesters</a>
+                        <a href="/facility" class="button">Facility</a>
+                        <a href="/outside" class="button">Outside</a>
+                        <a href="/all" class="button">ALL</a>
+                        <a href="/multi" class="button">Multi</a>
+                        <a href="/dashboard" class="button special-link">Dashboard</a>
+                        <a href="/osd" class="button special-link">OSD</a>
+                    `;
+                });
+        }
+
+        // Load zones when container becomes visible (after password)
+        const observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
+                    const container = document.querySelector('.container');
+                    if (container && container.style.display !== 'none') {
+                        loadZones();
+                        observer.disconnect();
+                    }
+                }
+            });
+        });
+
+        const container = document.querySelector('.container');
+        if (container) {
+            observer.observe(container, { attributes: true });
+            // Also load immediately if already visible
+            if (container.style.display !== 'none') {
+                loadZones();
+            }
+        }
+    </script>
 </body>
 </html>
