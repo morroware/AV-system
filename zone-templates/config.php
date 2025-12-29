@@ -47,7 +47,7 @@ const VOLUME_STEP = 1;      // Volume increment/decrement step
 // ============================================================================
 // SYSTEM SETTINGS
 // ============================================================================
-const HOME_URL = 'http://192.168.8.127';  // URL for the home button
+const HOME_URL = '/';  // URL for the home button (relative path)
 const LOG_LEVEL = 'error';                 // Logging level: debug, info, warning, error
 const API_TIMEOUT = 2;                     // API request timeout in seconds
 

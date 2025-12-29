@@ -130,8 +130,8 @@ function setupLogoControlDoubleClick() {
             if (isCtrlPressed) {
                 // Check if this is a double click (two clicks within doubleClickDelay ms)
                 if (currentTime - lastClickTime < doubleClickDelay) {
-                    // This is a control+double-click - redirect to the IP address
-                    window.location.href = 'http://192.168.8.127:8888';
+                    // This is a control+double-click - redirect to home page
+                    window.location.href = '/';
                 }
                 
                 // Update the last click time

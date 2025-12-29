@@ -55,7 +55,7 @@ const TRANSMITTERS = [
 const MAX_VOLUME = 11;
 const MIN_VOLUME = 0;
 const VOLUME_STEP = 1;
-const HOME_URL = 'http://localhost';
+const HOME_URL = '/';
 const LOG_LEVEL = 'error';
 const API_TIMEOUT = 1;
 

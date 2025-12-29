@@ -27,7 +27,7 @@ const TRANSMITTERS = [
 const MAX_VOLUME = 11;
 const MIN_VOLUME = 5;
 const VOLUME_STEP = 1;
-const HOME_URL = 'http://192.168.8.127';
+const HOME_URL = '/';
 const LOG_LEVEL = 'error';
 const API_TIMEOUT = 1;
 
