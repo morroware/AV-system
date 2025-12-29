@@ -742,3 +742,189 @@ function reorderZones(array $orderedIds): array
 
     return ['success' => true, 'message' => 'Zones reordered successfully'];
 }
+
+// ============================================================================
+// Quick Links (Custom URL Buttons) Management
+// ============================================================================
+
+/**
+ * Get a quick link by ID
+ *
+ * @param string $linkId The link ID
+ * @return array|null Link configuration or null if not found
+ */
+function getQuickLinkById(string $linkId): ?array
+{
+    $config = loadZonesConfig();
+
+    foreach ($config['specialLinks'] ?? [] as $link) {
+        if (($link['id'] ?? '') === $linkId) {
+            return $link;
+        }
+    }
+
+    return null;
+}
+
+/**
+ * Add a new quick link
+ *
+ * @param array $linkData Link configuration data
+ * @return array Result with 'success' and 'message' keys
+ */
+function addQuickLink(array $linkData): array
+{
+    $config = loadZonesConfig();
+
+    // Validate required fields
+    if (empty($linkData['id'])) {
+        return ['success' => false, 'message' => 'Link ID is required'];
+    }
+
+    if (empty($linkData['url'])) {
+        return ['success' => false, 'message' => 'URL is required'];
+    }
+
+    // Sanitize link ID (lowercase, alphanumeric and hyphens only)
+    $linkId = preg_replace('/[^a-z0-9\-]/', '', strtolower($linkData['id']));
+    if (empty($linkId)) {
+        return ['success' => false, 'message' => 'Link ID must contain alphanumeric characters'];
+    }
+
+    // Check if link already exists
+    foreach ($config['specialLinks'] ?? [] as $link) {
+        if (($link['id'] ?? '') === $linkId) {
+            return ['success' => false, 'message' => 'Link ID already exists'];
+        }
+    }
+
+    // Create new link entry
+    $newLink = [
+        'id' => $linkId,
+        'name' => $linkData['name'] ?? ucfirst($linkId),
+        'url' => $linkData['url'],
+        'description' => $linkData['description'] ?? '',
+        'enabled' => true,
+        'showInNav' => $linkData['showInNav'] ?? true,
+        'color' => $linkData['color'] ?? '#2196F3',
+        'icon' => $linkData['icon'] ?? 'link',
+        'openInNewTab' => $linkData['openInNewTab'] ?? false
+    ];
+
+    if (!isset($config['specialLinks'])) {
+        $config['specialLinks'] = [];
+    }
+
+    $config['specialLinks'][] = $newLink;
+
+    if (!saveZonesConfig($config)) {
+        return ['success' => false, 'message' => 'Failed to save configuration'];
+    }
+
+    return ['success' => true, 'message' => 'Quick link added successfully', 'link' => $newLink];
+}
+
+/**
+ * Update an existing quick link
+ *
+ * @param string $linkId The link ID to update
+ * @param array $updates The fields to update
+ * @return array Result with 'success' and 'message' keys
+ */
+function updateQuickLink(string $linkId, array $updates): array
+{
+    $config = loadZonesConfig();
+    $found = false;
+
+    foreach ($config['specialLinks'] as &$link) {
+        if (($link['id'] ?? '') === $linkId) {
+            // Don't allow changing the ID
+            unset($updates['id']);
+
+            // Merge updates
+            $link = array_merge($link, $updates);
+            $found = true;
+            break;
+        }
+    }
+
+    if (!$found) {
+        return ['success' => false, 'message' => 'Quick link not found'];
+    }
+
+    if (!saveZonesConfig($config)) {
+        return ['success' => false, 'message' => 'Failed to save configuration'];
+    }
+
+    return ['success' => true, 'message' => 'Quick link updated successfully'];
+}
+
+/**
+ * Remove a quick link from configuration
+ *
+ * @param string $linkId The link ID to remove
+ * @return array Result with 'success' and 'message' keys
+ */
+function removeQuickLink(string $linkId): array
+{
+    $config = loadZonesConfig();
+    $found = false;
+
+    foreach ($config['specialLinks'] as $index => $link) {
+        if (($link['id'] ?? '') === $linkId) {
+            array_splice($config['specialLinks'], $index, 1);
+            $found = true;
+            break;
+        }
+    }
+
+    if (!$found) {
+        return ['success' => false, 'message' => 'Quick link not found'];
+    }
+
+    if (!saveZonesConfig($config)) {
+        return ['success' => false, 'message' => 'Failed to save configuration'];
+    }
+
+    return ['success' => true, 'message' => 'Quick link removed successfully'];
+}
+
+/**
+ * Reorder quick links in the configuration
+ *
+ * @param array $orderedIds Array of link IDs in desired order
+ * @return array Result with 'success' and 'message' keys
+ */
+function reorderQuickLinks(array $orderedIds): array
+{
+    $config = loadZonesConfig();
+    $currentLinks = $config['specialLinks'] ?? [];
+    $reorderedLinks = [];
+
+    // Build map of existing links
+    $linkMap = [];
+    foreach ($currentLinks as $link) {
+        $linkMap[$link['id']] = $link;
+    }
+
+    // Reorder based on provided IDs
+    foreach ($orderedIds as $id) {
+        if (isset($linkMap[$id])) {
+            $reorderedLinks[] = $linkMap[$id];
+            unset($linkMap[$id]);
+        }
+    }
+
+    // Append any links not in the order list
+    foreach ($linkMap as $link) {
+        $reorderedLinks[] = $link;
+    }
+
+    $config['specialLinks'] = $reorderedLinks;
+
+    if (!saveZonesConfig($config)) {
+        return ['success' => false, 'message' => 'Failed to save configuration'];
+    }
+
+    return ['success' => true, 'message' => 'Quick links reordered successfully'];
+}

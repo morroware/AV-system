@@ -104,6 +104,54 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $config = loadZonesConfig();
             $result = ['success' => true, 'zones' => $config['zones'] ?? []];
             break;
+
+        // Quick Links actions
+        case 'addQuickLink':
+            $linkData = [
+                'id' => $_POST['id'] ?? '',
+                'name' => $_POST['name'] ?? '',
+                'url' => $_POST['url'] ?? '',
+                'description' => $_POST['description'] ?? '',
+                'showInNav' => isset($_POST['showInNav']),
+                'color' => $_POST['color'] ?? '#2196F3',
+                'openInNewTab' => isset($_POST['openInNewTab'])
+            ];
+            $result = addQuickLink($linkData);
+            break;
+
+        case 'updateQuickLink':
+            $linkId = $_POST['id'] ?? '';
+            $updates = [
+                'name' => $_POST['name'] ?? '',
+                'url' => $_POST['url'] ?? '',
+                'description' => $_POST['description'] ?? '',
+                'enabled' => isset($_POST['enabled']),
+                'showInNav' => isset($_POST['showInNav']),
+                'color' => $_POST['color'] ?? '#2196F3',
+                'openInNewTab' => isset($_POST['openInNewTab'])
+            ];
+            $result = updateQuickLink($linkId, $updates);
+            break;
+
+        case 'deleteQuickLink':
+            $linkId = $_POST['id'] ?? '';
+            $result = removeQuickLink($linkId);
+            break;
+
+        case 'reorderQuickLinks':
+            $orderData = $_POST['order'] ?? '';
+            $orderedIds = json_decode($orderData, true);
+            if (is_array($orderedIds)) {
+                $result = reorderQuickLinks($orderedIds);
+            } else {
+                $result = ['success' => false, 'message' => 'Invalid order data'];
+            }
+            break;
+
+        case 'getQuickLinks':
+            $config = loadZonesConfig();
+            $result = ['success' => true, 'quickLinks' => $config['specialLinks'] ?? []];
+            break;
     }
 
     echo json_encode($result);
@@ -113,6 +161,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 // Load current configuration for display
 $config = loadZonesConfig();
 $zones = $config['zones'] ?? [];
+$quickLinks = $config['specialLinks'] ?? [];
 $settings = $config['settings'] ?? [];
 ?>
 <!DOCTYPE html>
@@ -433,6 +482,49 @@ $settings = $config['settings'] ?? [];
             color: var(--text-secondary);
         }
 
+        .section-divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--border-color), transparent);
+            margin: 3rem 0 2rem;
+        }
+
+        .section-description {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 1.5rem;
+            line-height: 1.5;
+        }
+
+        .url-cell {
+            max-width: 250px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .url-cell a {
+            color: var(--primary-color);
+            text-decoration: none;
+        }
+
+        .url-cell a:hover {
+            text-decoration: underline;
+        }
+
+        .empty-row td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .btn-link {
+            background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+            color: #fff;
+        }
+
+        .btn-link:hover {
+            background: linear-gradient(135deg, #42A5F5 0%, #2196F3 100%);
+            transform: translateY(-2px);
+        }
+
         @media (max-width: 768px) {
             .zones-table {
                 display: block;
@@ -446,6 +538,10 @@ $settings = $config['settings'] ?? [];
 
             .header-actions {
                 flex-direction: column;
+            }
+
+            .url-cell {
+                max-width: 150px;
             }
         }
     </style>
@@ -545,6 +641,78 @@ $settings = $config['settings'] ?? [];
                         </td>
                     </tr>
                     <?php endforeach; ?>
+                </tbody>
+            </table>
+
+            <!-- Quick Links Section -->
+            <div class="section-divider"></div>
+
+            <div class="manager-header">
+                <h2>Quick Links</h2>
+                <div class="header-actions">
+                    <button class="btn btn-primary" onclick="openAddLinkModal()">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+                        </svg>
+                        Add Quick Link
+                    </button>
+                    <button class="btn btn-secondary" onclick="saveLinkOrder()">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" />
+                        </svg>
+                        Save Order
+                    </button>
+                </div>
+            </div>
+
+            <p class="section-description">Quick links appear as buttons on the home page and can link to any URL (external dashboards, tools, etc.)</p>
+
+            <table class="zones-table" id="quicklinks-table">
+                <thead>
+                    <tr>
+                        <th width="40"></th>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>URL</th>
+                        <th>Color</th>
+                        <th>Status</th>
+                        <th>New Tab</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="quicklinks-tbody">
+                    <?php foreach ($quickLinks as $link): ?>
+                    <tr data-id="<?php echo htmlspecialchars($link['id']); ?>" class="<?php echo empty($link['enabled']) ? 'disabled' : ''; ?>">
+                        <td>
+                            <span class="drag-handle link-drag" title="Drag to reorder">&#9776;</span>
+                        </td>
+                        <td><code><?php echo htmlspecialchars($link['id']); ?></code></td>
+                        <td><?php echo htmlspecialchars($link['name'] ?? ''); ?></td>
+                        <td class="url-cell"><a href="<?php echo htmlspecialchars($link['url'] ?? '#'); ?>" target="_blank" rel="noopener"><?php echo htmlspecialchars($link['url'] ?? ''); ?></a></td>
+                        <td>
+                            <span class="zone-color" style="background: <?php echo htmlspecialchars($link['color'] ?? '#2196F3'); ?>"></span>
+                        </td>
+                        <td>
+                            <span class="zone-status <?php echo !empty($link['enabled']) ? 'status-enabled' : 'status-disabled'; ?>">
+                                <?php echo !empty($link['enabled']) ? 'Enabled' : 'Disabled'; ?>
+                            </span>
+                        </td>
+                        <td>
+                            <?php echo !empty($link['openInNewTab']) ? 'Yes' : 'No'; ?>
+                        </td>
+                        <td class="zone-actions">
+                            <button class="btn btn-secondary btn-sm" onclick="openEditLinkModal('<?php echo htmlspecialchars($link['id']); ?>')">Edit</button>
+                            <button class="btn btn-danger btn-sm" onclick="openDeleteLinkModal('<?php echo htmlspecialchars($link['id']); ?>')">Delete</button>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
+                    <?php if (empty($quickLinks)): ?>
+                    <tr class="empty-row">
+                        <td colspan="8" style="text-align: center; padding: 2rem; color: var(--text-secondary);">
+                            No quick links configured. Click "Add Quick Link" to create one.
+                        </td>
+                    </tr>
+                    <?php endif; ?>
                 </tbody>
             </table>
         </div>
@@ -716,9 +884,139 @@ $settings = $config['settings'] ?? [];
         </div>
     </div>
 
+    <!-- Add Quick Link Modal -->
+    <div class="modal" id="add-link-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Add Quick Link</h2>
+                <button class="modal-close" onclick="closeModal('add-link-modal')">&times;</button>
+            </div>
+            <form id="add-link-form" onsubmit="submitAddLinkForm(event)">
+                <div class="form-group">
+                    <label for="add-link-id">Link ID</label>
+                    <input type="text" id="add-link-id" name="id" required pattern="[a-z0-9\-]+" placeholder="e.g., my-dashboard">
+                    <p class="form-hint">Lowercase letters, numbers, and hyphens only.</p>
+                </div>
+                <div class="form-group">
+                    <label for="add-link-name">Display Name</label>
+                    <input type="text" id="add-link-name" name="name" required placeholder="e.g., My Dashboard">
+                </div>
+                <div class="form-group">
+                    <label for="add-link-url">URL</label>
+                    <input type="text" id="add-link-url" name="url" required placeholder="e.g., https://example.com/dashboard">
+                    <p class="form-hint">Full URL or relative path (e.g., "dashboard/" for local paths)</p>
+                </div>
+                <div class="form-group">
+                    <label for="add-link-description">Description</label>
+                    <textarea id="add-link-description" name="description" placeholder="Optional description"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="add-link-color">Button Color</label>
+                    <input type="color" id="add-link-color" name="color" value="#2196F3">
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="showInNav" checked>
+                        Show on home page
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="openInNewTab">
+                        Open in new tab
+                    </label>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('add-link-modal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Quick Link</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Quick Link Modal -->
+    <div class="modal" id="edit-link-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Edit Quick Link</h2>
+                <button class="modal-close" onclick="closeModal('edit-link-modal')">&times;</button>
+            </div>
+            <form id="edit-link-form" onsubmit="submitEditLinkForm(event)">
+                <input type="hidden" id="edit-link-id" name="id">
+                <div class="form-group">
+                    <label>Link ID</label>
+                    <input type="text" id="edit-link-id-display" disabled>
+                    <p class="form-hint">Link ID cannot be changed after creation.</p>
+                </div>
+                <div class="form-group">
+                    <label for="edit-link-name">Display Name</label>
+                    <input type="text" id="edit-link-name" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-link-url">URL</label>
+                    <input type="text" id="edit-link-url" name="url" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-link-description">Description</label>
+                    <textarea id="edit-link-description" name="description"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="edit-link-color">Button Color</label>
+                    <input type="color" id="edit-link-color" name="color">
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="edit-link-enabled" name="enabled">
+                        Link Enabled
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="edit-link-showInNav" name="showInNav">
+                        Show on home page
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="edit-link-openInNewTab" name="openInNewTab">
+                        Open in new tab
+                    </label>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('edit-link-modal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Delete Quick Link Modal -->
+    <div class="modal" id="delete-link-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 style="color: #CF6679;">Delete Quick Link</h2>
+                <button class="modal-close" onclick="closeModal('delete-link-modal')" aria-label="Close">&times;</button>
+            </div>
+            <form id="delete-link-form" onsubmit="submitDeleteLinkForm(event)">
+                <input type="hidden" id="delete-link-id" name="id">
+                <div style="background: rgba(207, 102, 121, 0.1); padding: 1rem; border-radius: 8px; margin-bottom: 1rem; border: 1px solid #CF6679;">
+                    <p style="margin: 0; font-size: 1.1rem;">
+                        Are you sure you want to delete the quick link <strong id="delete-link-name" style="color: #CF6679;"></strong>?
+                    </p>
+                </div>
+                <p style="color: var(--text-secondary); margin-bottom: 1rem;">This will remove the link from the home page.</p>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('delete-link-modal')">Cancel</button>
+                    <button type="submit" class="btn btn-danger">Delete Quick Link</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
         // Zone data from PHP
         const zonesData = <?php echo json_encode($zones); ?>;
+        const quickLinksData = <?php echo json_encode($quickLinks); ?>;
 
         // Modal functions
         function openModal(modalId) {
@@ -971,6 +1269,189 @@ $settings = $config['settings'] ?? [];
 
                 if (result.success) {
                     showAlert('Zone order saved successfully');
+                } else {
+                    showAlert(result.message, 'error');
+                }
+            } catch (error) {
+                showAlert('An error occurred: ' + error.message, 'error');
+            }
+        }
+
+        // ========================================
+        // Quick Links Functions
+        // ========================================
+
+        function openAddLinkModal() {
+            document.getElementById('add-link-form').reset();
+            openModal('add-link-modal');
+        }
+
+        function openEditLinkModal(linkId) {
+            const link = quickLinksData.find(l => l.id === linkId);
+            if (!link) return;
+
+            document.getElementById('edit-link-id').value = link.id;
+            document.getElementById('edit-link-id-display').value = link.id;
+            document.getElementById('edit-link-name').value = link.name || '';
+            document.getElementById('edit-link-url').value = link.url || '';
+            document.getElementById('edit-link-description').value = link.description || '';
+            document.getElementById('edit-link-color').value = link.color || '#2196F3';
+            document.getElementById('edit-link-enabled').checked = link.enabled !== false;
+            document.getElementById('edit-link-showInNav').checked = link.showInNav !== false;
+            document.getElementById('edit-link-openInNewTab').checked = link.openInNewTab === true;
+
+            openModal('edit-link-modal');
+        }
+
+        function openDeleteLinkModal(linkId) {
+            const link = quickLinksData.find(l => l.id === linkId);
+            if (!link) return;
+
+            document.getElementById('delete-link-id').value = link.id;
+            document.getElementById('delete-link-name').textContent = link.name || link.id;
+
+            openModal('delete-link-modal');
+        }
+
+        async function submitAddLinkForm(event) {
+            event.preventDefault();
+            const form = event.target;
+            const formData = new FormData(form);
+            formData.append('action', 'addQuickLink');
+
+            try {
+                const response = await fetch('', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    showAlert(result.message);
+                    closeModal('add-link-modal');
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    showAlert(result.message, 'error');
+                }
+            } catch (error) {
+                showAlert('An error occurred: ' + error.message, 'error');
+            }
+        }
+
+        async function submitEditLinkForm(event) {
+            event.preventDefault();
+            const form = event.target;
+            const formData = new FormData(form);
+            formData.append('action', 'updateQuickLink');
+
+            try {
+                const response = await fetch('', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    showAlert(result.message);
+                    closeModal('edit-link-modal');
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    showAlert(result.message, 'error');
+                }
+            } catch (error) {
+                showAlert('An error occurred: ' + error.message, 'error');
+            }
+        }
+
+        async function submitDeleteLinkForm(event) {
+            event.preventDefault();
+            const form = event.target;
+            const formData = new FormData(form);
+            formData.append('action', 'deleteQuickLink');
+
+            try {
+                const response = await fetch('', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    showAlert(result.message);
+                    closeModal('delete-link-modal');
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    showAlert(result.message, 'error');
+                }
+            } catch (error) {
+                showAlert('An error occurred: ' + error.message, 'error');
+            }
+        }
+
+        // Quick Links drag and drop reordering
+        let draggedLinkRow = null;
+
+        document.querySelectorAll('.link-drag').forEach(handle => {
+            const row = handle.closest('tr');
+
+            handle.addEventListener('mousedown', () => {
+                row.draggable = true;
+            });
+
+            handle.addEventListener('mouseup', () => {
+                row.draggable = false;
+            });
+        });
+
+        const quickLinksTbody = document.getElementById('quicklinks-tbody');
+        if (quickLinksTbody) {
+            quickLinksTbody.addEventListener('dragstart', (e) => {
+                if (e.target.tagName === 'TR') {
+                    draggedLinkRow = e.target;
+                    e.target.classList.add('dragging');
+                }
+            });
+
+            quickLinksTbody.addEventListener('dragend', (e) => {
+                if (e.target.tagName === 'TR') {
+                    e.target.classList.remove('dragging');
+                    e.target.draggable = false;
+                    draggedLinkRow = null;
+                }
+            });
+
+            quickLinksTbody.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                const row = e.target.closest('tr');
+                if (row && row !== draggedLinkRow && !row.classList.contains('empty-row')) {
+                    const rect = row.getBoundingClientRect();
+                    const midY = rect.top + rect.height / 2;
+                    if (e.clientY < midY) {
+                        row.parentNode.insertBefore(draggedLinkRow, row);
+                    } else {
+                        row.parentNode.insertBefore(draggedLinkRow, row.nextSibling);
+                    }
+                }
+            });
+        }
+
+        async function saveLinkOrder() {
+            const rows = document.querySelectorAll('#quicklinks-tbody tr:not(.empty-row)');
+            const order = Array.from(rows).map(row => row.dataset.id).filter(id => id);
+
+            const formData = new FormData();
+            formData.append('action', 'reorderQuickLinks');
+            formData.append('order', JSON.stringify(order));
+
+            try {
+                const response = await fetch('', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    showAlert('Quick links order saved successfully');
                 } else {
                     showAlert(result.message, 'error');
                 }
