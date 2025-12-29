@@ -1,0 +1,26 @@
+# Enable URL rewriting
+RewriteEngine On
+
+# Ensure PHP files are handled correctly
+AddHandler application/x-httpd-php .php
+
+# Allow direct access to existing files and directories
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Redirect zone requests to their index.php
+RewriteRule ^([a-z0-9]+)/?$ $1/index.php [L]
+
+# Set proper MIME types
+<IfModule mod_mime.c>
+    AddType application/json .json
+</IfModule>
+
+# Prevent directory listing
+Options -Indexes
+
+# Allow access to all files
+<FilesMatch "\.(php|html|css|js|json|png|gif|jpg|ico|ini|txt)$">
+    Require all granted
+</FilesMatch>
