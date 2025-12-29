@@ -420,16 +420,22 @@ function enableStereoAudio($deviceIp) {
 
 /**
  * Set channel with comprehensive anti-popping measures
+ * Uses reduced timing for better responsiveness while maintaining audio quality
  */
 function setChannelWithoutPopping($deviceIp, $channel) {
+    $supportsDsp = false;
+    $currentVolume = null;
+    $audioDisabled = false;
+    $channelChangeResult = false;
+
     try {
         $supportsDsp = supportsDspControl($deviceIp);
         $currentVolume = getCurrentVolume($deviceIp);
 
-        // Step 1: Set volume to zero
+        // Step 1: Set volume to zero (reduced from 1s to 500ms)
         if ($currentVolume !== null && $currentVolume > 0) {
             setVolume($deviceIp, 0);
-            sleep(1);
+            usleep(500000); // 500ms
         }
 
         // Step 2: Disable audio outputs
@@ -439,48 +445,43 @@ function setChannelWithoutPopping($deviceIp, $channel) {
         }
         disableHdmiAudio($deviceIp);
         disableStereoAudio($deviceIp);
+        $audioDisabled = true;
 
-        sleep(2);
+        usleep(500000); // 500ms (reduced from 2s)
 
         // Step 3: Change channel
         $channelChangeResult = setChannel($deviceIp, $channel);
 
-        sleep(3);
+        // Step 4: Wait for channel to stabilize (reduced from 3s to 1.5s)
+        usleep(1500000); // 1.5s
 
-        // Step 4: Re-enable audio
-        enableStereoAudio($deviceIp);
-        enableHdmiAudio($deviceIp);
-        if ($supportsDsp) {
-            enableDspHdmiAudio($deviceIp);
-            enableDspLineAudio($deviceIp);
-        }
-
-        sleep(1);
-
-        // Step 5: Restore volume
-        if ($currentVolume !== null && $currentVolume > 0) {
-            setVolume($deviceIp, $currentVolume);
-        }
-
-        return $channelChangeResult;
     } catch (Exception $e) {
-        // Attempt to re-enable audio on error
-        try {
-            enableHdmiAudio($deviceIp);
+        logMessage('Error setting channel with anti-popping: ' . $e->getMessage(), 'error');
+        $channelChangeResult = false;
+    }
+
+    // ALWAYS restore audio - this runs regardless of success/failure
+    try {
+        if ($audioDisabled) {
             enableStereoAudio($deviceIp);
-            if (isset($supportsDsp) && $supportsDsp) {
+            enableHdmiAudio($deviceIp);
+            if ($supportsDsp) {
                 enableDspHdmiAudio($deviceIp);
                 enableDspLineAudio($deviceIp);
             }
-            if (isset($currentVolume) && $currentVolume > 0) {
-                setVolume($deviceIp, $currentVolume);
-            }
-        } catch (Exception $re) {
-            logMessage("Error re-enabling audio: " . $re->getMessage(), 'error');
         }
-        logMessage('Error setting channel with anti-popping: ' . $e->getMessage(), 'error');
-        return false;
+
+        usleep(300000); // 300ms (reduced from 1s)
+
+        // Restore volume
+        if ($currentVolume !== null && $currentVolume > 0) {
+            setVolume($deviceIp, $currentVolume);
+        }
+    } catch (Exception $re) {
+        logMessage("Error re-enabling audio for $deviceIp: " . $re->getMessage(), 'error');
     }
+
+    return $channelChangeResult;
 }
 
 // ============================================================================

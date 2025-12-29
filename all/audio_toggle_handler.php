@@ -76,11 +76,21 @@ try {
                 'volumes' => $volumeLevels
             ];
 
-            $writeResult = file_put_contents($volumeStorageFile, json_encode($volumeData, JSON_PRETTY_PRINT));
-            if ($writeResult !== false) {
-                $debugLog[] = "Successfully saved volumes to file";
+            // Use file locking to prevent race conditions
+            $lockFile = $volumeStorageFile . '.lock';
+            $lockHandle = fopen($lockFile, 'c');
+            if ($lockHandle && flock($lockHandle, LOCK_EX)) {
+                $writeResult = file_put_contents($volumeStorageFile, json_encode($volumeData, JSON_PRETTY_PRINT));
+                flock($lockHandle, LOCK_UN);
+                fclose($lockHandle);
+                if ($writeResult !== false) {
+                    $debugLog[] = "Successfully saved volumes to file";
+                } else {
+                    $debugLog[] = "Failed to write volumes to file";
+                }
             } else {
-                $debugLog[] = "Failed to write volumes to file";
+                $debugLog[] = "Failed to acquire lock for volume file";
+                if ($lockHandle) fclose($lockHandle);
             }
         } else {
             $debugLog[] = "No volumes collected to save";
@@ -128,37 +138,48 @@ try {
 
         if (file_exists($volumeStorageFile)) {
             $debugLog[] = "Volume file exists, reading content";
-            $content = file_get_contents($volumeStorageFile);
 
-            if ($content !== false) {
-                $debugLog[] = "File content read successfully";
-                $data = json_decode($content, true);
+            // Use file locking to prevent race conditions during read
+            $lockFile = $volumeStorageFile . '.lock';
+            $lockHandle = fopen($lockFile, 'c');
+            if ($lockHandle && flock($lockHandle, LOCK_SH)) {
+                $content = file_get_contents($volumeStorageFile);
+                flock($lockHandle, LOCK_UN);
+                fclose($lockHandle);
 
-                if ($data && isset($data['volumes'])) {
-                    $savedVolumes = $data['volumes'];
-                    $debugLog[] = "Found saved volumes";
+                if ($content !== false) {
+                    $debugLog[] = "File content read successfully";
+                    $data = json_decode($content, true);
 
-                    foreach ($audioZones as $zoneName => $zoneIp) {
-                        if (isset($savedVolumes[$zoneName])) {
-                            $targetVolume = $savedVolumes[$zoneName];
-                            $volumeResult = setVolume($zoneIp, $targetVolume);
+                    if ($data && isset($data['volumes'])) {
+                        $savedVolumes = $data['volumes'];
+                        $debugLog[] = "Found saved volumes";
 
-                            if ($volumeResult) {
-                                $debugLog[] = "Successfully restored $zoneName volume to $targetVolume";
+                        foreach ($audioZones as $zoneName => $zoneIp) {
+                            if (isset($savedVolumes[$zoneName])) {
+                                $targetVolume = $savedVolumes[$zoneName];
+                                $volumeResult = setVolume($zoneIp, $targetVolume);
+
+                                if ($volumeResult) {
+                                    $debugLog[] = "Successfully restored $zoneName volume to $targetVolume";
+                                } else {
+                                    $debugLog[] = "Failed to restore $zoneName volume to $targetVolume";
+                                }
+
+                                usleep(100000);
                             } else {
-                                $debugLog[] = "Failed to restore $zoneName volume to $targetVolume";
+                                $debugLog[] = "No saved volume found for $zoneName";
                             }
-
-                            usleep(100000);
-                        } else {
-                            $debugLog[] = "No saved volume found for $zoneName";
                         }
+                    } else {
+                        $debugLog[] = "Invalid JSON format in volume file";
                     }
                 } else {
-                    $debugLog[] = "Invalid JSON format in volume file";
+                    $debugLog[] = "Failed to read volume file content";
                 }
             } else {
-                $debugLog[] = "Failed to read volume file content";
+                $debugLog[] = "Failed to acquire lock for reading volume file";
+                if ($lockHandle) fclose($lockHandle);
             }
         } else {
             $debugLog[] = "Volume file does not exist";
