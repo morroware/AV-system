@@ -283,12 +283,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['restore_backup'])) {
     }
 }
 
-// Determine relative path to shared resources
-$sharedPath = str_replace(ZONE_DIR, '', dirname(__FILE__));
-if (empty($sharedPath)) {
-    $sharedPath = '.';
+// Determine zone name from ZONE_DIR
+$zoneName = basename(ZONE_DIR);
+
+// Determine paths based on how we're being accessed
+$isRootEntry = (dirname($_SERVER['SCRIPT_FILENAME']) === dirname(ZONE_DIR));
+if ($isRootEntry) {
+    $sharedPath = 'shared';
+    $zoneIndexPath = $zoneName . '/index.php';
+    $editiniPath = 'editini.php?zone=' . urlencode($zoneName);
 } else {
-    $sharedPath = ltrim($sharedPath, '/');
+    $sharedPath = '../shared';
+    $zoneIndexPath = 'index.php';
+    $editiniPath = '../editini.php?zone=' . urlencode($zoneName);
 }
 
 ?>
@@ -443,8 +450,8 @@ if (empty($sharedPath)) {
                 <h1>AV Control System Settings</h1>
             </div>
             <div class="header-buttons">
-                <a href="index.php" class="button home-button">Back to Control Panel</a>
-                <a href="editini.php" class="button home-button">Other Configs</a>
+                <a href="<?php echo $zoneIndexPath; ?>" class="button home-button">Back to Control Panel</a>
+                <a href="<?php echo $editiniPath; ?>" class="button home-button">Other Configs</a>
             </div>
         </header>
 
