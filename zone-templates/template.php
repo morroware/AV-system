@@ -127,6 +127,9 @@ $settingsPath = "../settings.php?zone=" . urlencode($zoneName);
     </div>
 
     <script>
+        // Pass transmitters data to JavaScript for lazy loading
+        window.TRANSMITTERS = <?php echo getTransmittersJson(); ?>;
+
         // Ctrl+Click on logo opens settings
         function handleLogoClick(event) {
             if (event.ctrlKey) {

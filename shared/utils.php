@@ -55,7 +55,10 @@ function generateReceiverForms() {
 }
 
 /**
- * Generate a single receiver form
+ * Generate a single receiver form (lazy-loaded)
+ *
+ * This function generates the receiver card HTML without making any blocking API calls.
+ * The channel/volume status is fetched asynchronously via JavaScript after page load.
  *
  * @param string $receiverName Display name for the receiver
  * @param string $deviceIp IP address of the device
@@ -66,56 +69,34 @@ function generateReceiverForms() {
  * @return string HTML for the receiver form
  */
 function generateReceiverForm($receiverName, $deviceIp, $minVolume, $maxVolume, $volumeStep, $showPower = true) {
-    try {
-        $currentChannel = getCurrentChannel($deviceIp);
-        if ($currentChannel === null) {
-            throw new Exception("Unable to get current channel");
-        }
-        $supportsVolume = supportsVolumeControl($deviceIp);
+    $escapedName = htmlspecialchars($receiverName);
+    $escapedIp = htmlspecialchars($deviceIp);
 
-        $html = "<div class='receiver' data-ip='" . htmlspecialchars($deviceIp) . "'>";
-        $html .= "<button type='button' class='receiver-title'>" . htmlspecialchars($receiverName) . "</button>";
+    $html = "<div class='receiver receiver-loading' data-ip='" . $escapedIp . "' data-name='" . $escapedName . "' data-min-volume='$minVolume' data-max-volume='$maxVolume' data-volume-step='$volumeStep' data-show-power='" . ($showPower ? '1' : '0') . "'>";
+    $html .= "<button type='button' class='receiver-title'>" . $escapedName . "</button>";
 
-        // Generate channel selection dropdown
-        $html .= "<label for='channel_" . htmlspecialchars($receiverName) . "'>Channel:</label>";
-        $html .= "<select id='channel_" . htmlspecialchars($receiverName) . "' class='channel-select' data-ip='" . htmlspecialchars($deviceIp) . "'>";
-        if (defined('TRANSMITTERS')) {
-            foreach (TRANSMITTERS as $transmitterName => $channelNumber) {
-                $selected = ($channelNumber == $currentChannel) ? ' selected' : '';
-                $html .= "<option value='$channelNumber'$selected>" . htmlspecialchars($transmitterName) . "</option>";
-            }
-        }
-        $html .= "</select>";
+    // Loading placeholder
+    $html .= "<div class='receiver-content'>";
+    $html .= "<div class='receiver-loading-placeholder'>";
+    $html .= "<span class='spinner'></span> Loading...";
+    $html .= "</div>";
+    $html .= "</div>";
 
-        // Generate volume control if supported
-        if ($supportsVolume) {
-            $currentVolume = getCurrentVolume($deviceIp);
-            if ($currentVolume === null) {
-                $currentVolume = $minVolume;
-            }
-            $html .= "<label for='volume_" . htmlspecialchars($receiverName) . "'>Volume:</label>";
-            $html .= "<input type='range' id='volume_" . htmlspecialchars($receiverName) . "' class='volume-slider' data-ip='" . htmlspecialchars($deviceIp) . "' min='$minVolume' max='$maxVolume' step='$volumeStep' value='$currentVolume'>";
-            $html .= "<span class='volume-label'>$currentVolume</span>";
-        }
+    $html .= "</div>";
 
-        // Add power buttons if enabled
-        if ($showPower) {
-            $html .= "<div class='power-buttons'>";
-            $html .= "<button type='button' class='power-on' onclick='sendPowerCommand(\"" . htmlspecialchars($deviceIp) . "\", \"cec_tv_on.sh\")'>Power On</button>";
-            $html .= "<button type='button' class='power-off' onclick='sendPowerCommand(\"" . htmlspecialchars($deviceIp) . "\", \"cec_tv_off.sh\")'>Power Off</button>";
-            $html .= "</div>";
-        }
+    return $html;
+}
 
-        $html .= "</div>";
-
-        return $html;
-    } catch (Exception $e) {
-        return "<div class='receiver'>" .
-               "<button type='button' class='receiver-title'>" . htmlspecialchars($receiverName) . "</button>" .
-               "<p style='text-align: center; color: #ff6b6b; padding: 1rem;'>" .
-               "Device unreachable. Please check connection." .
-               "</p></div>";
+/**
+ * Get transmitters list as JSON for JavaScript
+ *
+ * @return string JSON-encoded transmitters array
+ */
+function getTransmittersJson() {
+    if (!defined('TRANSMITTERS')) {
+        return '{}';
     }
+    return json_encode(TRANSMITTERS);
 }
 
 // ============================================================================

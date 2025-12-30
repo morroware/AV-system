@@ -334,23 +334,15 @@ class BaseController {
     /**
      * Check if all receivers are unreachable
      *
-     * @return bool True if all receivers are unreachable
+     * With lazy loading enabled, this check is skipped to avoid blocking page load.
+     * Individual receiver status is checked asynchronously via JavaScript.
+     *
+     * @return bool Always returns false (lazy loading handles unreachable state)
      */
     public function areAllReceiversUnreachable() {
-        if (!defined('RECEIVERS') || empty(RECEIVERS)) {
-            return true; // Consider unreachable if no receivers defined
-        }
-
-        foreach (RECEIVERS as $receiverName => $receiverConfig) {
-            try {
-                getCurrentChannel($receiverConfig['ip']);
-                return false; // At least one is reachable
-            } catch (Exception $e) {
-                continue;
-            }
-        }
-
-        return true; // All unreachable
+        // With lazy loading, we don't block page load for reachability checks
+        // Each receiver's status is fetched asynchronously
+        return false;
     }
 
     /**

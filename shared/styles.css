@@ -363,6 +363,35 @@ h2 {
     box-shadow: 0 4px 12px var(--primary-glow);
 }
 
+/* Lazy Loading Receiver Styles */
+.receiver-loading .receiver-content {
+    min-height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.receiver-loading-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    padding: 1.5rem;
+}
+
+.receiver-loading-placeholder .spinner {
+    width: 20px;
+    height: 20px;
+}
+
+.receiver-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
 /* Form Controls - Modern Style */
 .receiver select,
 .receiver input[type="range"] {

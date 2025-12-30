@@ -9,6 +9,9 @@ document.addEventListener('DOMContentLoaded', function() {
     loadTransmitters();
     loadFavoriteChannels();
     initializeAccessibility();
+
+    // Lazy-load receiver status after page load
+    lazyLoadReceivers();
 });
 
 // Add loading state to an element
@@ -376,4 +379,106 @@ function loadFavoriteChannels() {
             const container = document.getElementById('favorite-channels-select');
             if (container) container.style.display = 'none';
         });
+}
+
+// ============================================================================
+// LAZY LOADING RECEIVERS
+// ============================================================================
+
+/**
+ * Lazy-load receiver status for all receivers on the page
+ * Fetches status asynchronously after page load for better UX
+ */
+function lazyLoadReceivers() {
+    const receivers = document.querySelectorAll('.receiver.receiver-loading');
+    if (receivers.length === 0) return;
+
+    // Get transmitters data from the page (injected by PHP)
+    const transmitters = window.TRANSMITTERS || {};
+
+    // Load each receiver's status
+    receivers.forEach(receiver => {
+        const ip = receiver.dataset.ip;
+        if (!ip) return;
+
+        loadReceiverStatus(receiver, ip, transmitters);
+    });
+}
+
+/**
+ * Fetch and populate a single receiver's status
+ */
+function loadReceiverStatus(receiverElement, ip, transmitters) {
+    const contentDiv = receiverElement.querySelector('.receiver-content');
+    if (!contentDiv) return;
+
+    // Fetch status from API
+    fetch(`../api/receiver-status.php?ip=${encodeURIComponent(ip)}`)
+        .then(response => response.json())
+        .then(data => {
+            receiverElement.classList.remove('receiver-loading');
+
+            if (!data.success) {
+                // Device unreachable
+                contentDiv.innerHTML = `
+                    <p style="text-align: center; color: #ff6b6b; padding: 1rem;">
+                        Device unreachable. Please check connection.
+                    </p>`;
+                return;
+            }
+
+            // Get receiver settings from data attributes
+            const name = receiverElement.dataset.name || 'Receiver';
+            const minVolume = parseInt(receiverElement.dataset.minVolume) || 0;
+            const maxVolume = parseInt(receiverElement.dataset.maxVolume) || 11;
+            const volumeStep = parseInt(receiverElement.dataset.volumeStep) || 1;
+            const showPower = receiverElement.dataset.showPower === '1';
+
+            // Build the controls HTML
+            let html = '';
+
+            // Channel selector
+            html += `<label for="channel_${name}">Channel:</label>`;
+            html += `<select id="channel_${name}" class="channel-select" data-ip="${ip}">`;
+            for (const [transmitterName, channelNumber] of Object.entries(transmitters)) {
+                const selected = (channelNumber == data.channel) ? ' selected' : '';
+                html += `<option value="${channelNumber}"${selected}>${escapeHtml(transmitterName)}</option>`;
+            }
+            html += '</select>';
+
+            // Volume slider if supported
+            if (data.supportsVolume) {
+                const volume = data.volume !== null ? data.volume : minVolume;
+                html += `<label for="volume_${name}">Volume:</label>`;
+                html += `<input type="range" id="volume_${name}" class="volume-slider" data-ip="${ip}" min="${minVolume}" max="${maxVolume}" step="${volumeStep}" value="${volume}">`;
+                html += `<span class="volume-label">${volume}</span>`;
+            }
+
+            // Power buttons
+            if (showPower) {
+                html += '<div class="power-buttons">';
+                html += `<button type="button" class="power-on" onclick="sendPowerCommand('${ip}', 'cec_tv_on.sh')">Power On</button>`;
+                html += `<button type="button" class="power-off" onclick="sendPowerCommand('${ip}', 'cec_tv_off.sh')">Power Off</button>`;
+                html += '</div>';
+            }
+
+            contentDiv.innerHTML = html;
+        })
+        .catch(error => {
+            console.error('Error loading receiver status:', error);
+            receiverElement.classList.remove('receiver-loading');
+            contentDiv.innerHTML = `
+                <p style="text-align: center; color: #ff6b6b; padding: 1rem;">
+                    Failed to load receiver status.
+                </p>`;
+        });
+}
+
+/**
+ * Escape HTML special characters
+ */
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
