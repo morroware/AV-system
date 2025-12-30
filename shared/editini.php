@@ -150,11 +150,13 @@ if ($isRootEntry) {
     $zoneIndexPath = $zoneName . '/index.php';
     $settingsPath = 'settings.php?zone=' . urlencode($zoneName);
     $editiniPath = 'editini.php?zone=' . urlencode($zoneName);
+    $zoneParam = 'zone=' . urlencode($zoneName) . '&';
 } else {
     $sharedPath = '../shared';
     $zoneIndexPath = 'index.php';
     $settingsPath = '../settings.php?zone=' . urlencode($zoneName);
     $editiniPath = '../editini.php?zone=' . urlencode($zoneName);
+    $zoneParam = 'zone=' . urlencode($zoneName) . '&';
 }
 
 ?>
@@ -450,7 +452,7 @@ if ($isRootEntry) {
             <h2>Select Configuration File</h2>
             <div class="file-select">
                 <?php foreach ($editableFiles as $filename => $info): ?>
-                <a href="?file=<?php echo urlencode($filename); ?>"
+                <a href="?<?php echo $zoneParam; ?>file=<?php echo urlencode($filename); ?>"
                    class="<?php echo $selectedFile === $filename ? 'active' : ''; ?>">
                     <?php echo htmlspecialchars($info['title']); ?>
                 </a>
@@ -468,7 +470,7 @@ if ($isRootEntry) {
                 <?php echo htmlspecialchars($editableFiles[$selectedFile]['description']); ?>
             </div>
 
-            <form method="post" action="">
+            <form method="post" action="?<?php echo $zoneParam; ?>file=<?php echo urlencode($selectedFile); ?>">
                 <input type="hidden" name="file" value="<?php echo htmlspecialchars($selectedFile); ?>">
                 <textarea name="content" id="file-editor"><?php echo htmlspecialchars($fileContent); ?></textarea>
 
