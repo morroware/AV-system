@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', function() {
     loadTransmitters();
     loadFavoriteChannels();
     initializeAccessibility();
+    initializeWledControls();
 
     // Lazy-load receiver status after page load
     lazyLoadReceivers();
@@ -197,6 +198,63 @@ function initializeReceiverControls() {
     $('#power-all-off').on('click', function() {
         // No response message - send command silently
         sendPowerCommandToAll('cec_tv_off.sh', false);
+    });
+}
+
+// WLED Control Functions
+function initializeWledControls() {
+    const wledControls = document.getElementById('wled-footer-controls');
+    if (!wledControls) return;
+
+    const zone = wledControls.dataset.zone;
+    if (!zone) {
+        console.warn('WLED controls found but no zone specified');
+        return;
+    }
+
+    // WLED Power On button
+    const powerOnBtn = wledControls.querySelector('.power-on');
+    if (powerOnBtn) {
+        powerOnBtn.addEventListener('click', function() {
+            sendWledCommand(zone, 'on', this);
+        });
+    }
+
+    // WLED Power Off button
+    const powerOffBtn = wledControls.querySelector('.power-off');
+    if (powerOffBtn) {
+        powerOffBtn.addEventListener('click', function() {
+            sendWledCommand(zone, 'off', this);
+        });
+    }
+}
+
+function sendWledCommand(zone, action, buttonElement) {
+    // Add visual feedback
+    if (buttonElement) {
+        buttonElement.classList.add('clicked');
+        setTimeout(() => buttonElement.classList.remove('clicked'), 150);
+    }
+
+    const formData = new FormData();
+    formData.append('zone', zone);
+    formData.append('action', action);
+
+    fetch('../wled.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showResponseMessage(`WLED lights turned ${action}`, true);
+        } else {
+            showResponseMessage(data.message || `Failed to turn WLED ${action}`, false);
+        }
+    })
+    .catch(error => {
+        console.error('WLED command error:', error);
+        showResponseMessage(`Failed to send WLED ${action} command`, false);
     });
 }
 
