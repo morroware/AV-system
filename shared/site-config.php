@@ -13,16 +13,16 @@
  */
 
 // Home URL - the main dashboard/zone selection page
-// Use empty string for relative paths (recommended for portability)
+// Use relative paths for portability (recommended)
 // Or set to a full URL like 'http://192.168.8.127' for absolute paths
 if (!defined('HOME_URL')) {
-    define('HOME_URL', '/');
+    define('HOME_URL', 'index.html');
 }
 
 // Admin panel URL (for control+double-click on logo)
-// Use empty string or relative path if admin is on same server
+// Use relative path if admin is on same server
 if (!defined('ADMIN_URL')) {
-    define('ADMIN_URL', '/');
+    define('ADMIN_URL', 'index.html');
 }
 
 // API endpoint base path (relative to device IP)
