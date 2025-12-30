@@ -203,9 +203,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['restore_backup'])) {
             $config['MAX_VOLUME'] = $maxVolume;
             $config['MIN_VOLUME'] = $minVolume;
             $config['VOLUME_STEP'] = $volumeStep;
-            $homeUrl = filter_var($_POST['home_url'], FILTER_VALIDATE_URL);
-            if ($homeUrl === false) {
-                throw new Exception("Invalid home URL");
+            // Accept relative paths (/, /index.php) or full URLs
+            $homeUrl = trim($_POST['home_url']);
+            if (empty($homeUrl)) {
+                throw new Exception("Home URL is required");
+            }
+            // Validate: must be a relative path starting with / or a valid URL
+            if ($homeUrl[0] !== '/' && !filter_var($homeUrl, FILTER_VALIDATE_URL)) {
+                throw new Exception("Invalid home URL - use a relative path (e.g., /) or full URL");
             }
             $config['HOME_URL'] = $homeUrl;
             $config['LOG_LEVEL'] = in_array($_POST['log_level'], ['error', 'info', 'debug']) ? $_POST['log_level'] : 'error';
@@ -681,11 +686,12 @@ if ($isRootEntry) {
                         <div class="config-row">
                             <div class="config-field">
                                 <label for="home_url">Home URL</label>
-                                <input type="url"
+                                <input type="text"
                                        id="home_url"
                                        name="home_url"
-                                       value="<?php echo $formData['home_url']; ?>"
+                                       value="<?php echo htmlspecialchars($formData['home_url']); ?>"
                                        class="config-input"
+                                       placeholder="/ or https://..."
                                        required>
                             </div>
                             <div class="config-field">
