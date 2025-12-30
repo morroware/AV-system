@@ -119,6 +119,9 @@
     </div>
 
     <script>
+        // Pass transmitters data to JavaScript for lazy loading
+        window.TRANSMITTERS = <?php echo getTransmittersJson(); ?>;
+
         function handleLogoClick(event) {
             if (event.ctrlKey) {
                 window.location.href = '<?php echo $settingsPath; ?>';
