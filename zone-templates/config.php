@@ -27,15 +27,24 @@ const RECEIVERS = [
 ];
 
 // ============================================================================
-// TRANSMITTERS - Input sources (Apple TV, Cable Box, etc.)
+// TRANSMITTERS - Loaded dynamically from global devices.json
 // ============================================================================
-const TRANSMITTERS = [
-    // Example entries - modify for your setup:
-    // 'Apple TV' => 1,
-    // 'Cable Box' => 2,
-    // 'Streaming Box' => 3,
-    // 'Music Player' => 4,
-];
+// Transmitters are loaded from /devices.json so all zones share the same list.
+// To manage transmitters, use the device management page at /multi/devices.php
+$devicesFile = dirname(__DIR__) . '/devices.json';
+$transmittersArray = [];
+if (file_exists($devicesFile)) {
+    $devicesData = json_decode(file_get_contents($devicesFile), true) ?? [];
+    if (!empty($devicesData['transmitters'])) {
+        foreach ($devicesData['transmitters'] as $transmitter) {
+            if (isset($transmitter['enabled']) && $transmitter['enabled'] === false) {
+                continue;
+            }
+            $transmittersArray[$transmitter['name']] = $transmitter['channel'];
+        }
+    }
+}
+define('TRANSMITTERS', $transmittersArray);
 
 // ============================================================================
 // VOLUME SETTINGS
