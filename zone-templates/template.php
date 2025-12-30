@@ -138,4 +138,10 @@ $settingsPath = "../settings.php?zone=" . urlencode($zoneName);
         }
     </script>
 </body>
+<footer>
+    <div id="wled-footer-controls" data-zone="<?php echo htmlspecialchars($zoneName); ?>">
+        <button class="button power-on">WLED Power On</button>
+        <button class="button power-off">WLED Power Off</button>
+    </div>
+</footer>
 </html>
