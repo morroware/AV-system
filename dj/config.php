@@ -75,17 +75,21 @@ const RECEIVERS = [
     ],
 ];
 
-const TRANSMITTERS = [
-    'Cable Box 1 (Attic TX 1)' => 7,
-    'Cable Box 2 (Attic TX 2)' => 3,
-    'Cable Box 3 (Attic TX 3)' => 4,
-    'Apple TV' => 2,
-    'Unifi Signage' => 5,
-    'Mobile Video TX' => 9,
-    'Mobile Audio TX' => 1,
-    'RockBot Audio' => 10,
-    'Wireless Mic TX' => 8,
-];
+// Load transmitters from global devices.json
+$devicesFile = dirname(__DIR__) . '/devices.json';
+$transmittersArray = [];
+if (file_exists($devicesFile)) {
+    $devicesData = json_decode(file_get_contents($devicesFile), true) ?? [];
+    if (!empty($devicesData['transmitters'])) {
+        foreach ($devicesData['transmitters'] as $transmitter) {
+            if (isset($transmitter['enabled']) && $transmitter['enabled'] === false) {
+                continue;
+            }
+            $transmittersArray[$transmitter['name']] = $transmitter['channel'];
+        }
+    }
+}
+define('TRANSMITTERS', $transmittersArray);
 
 const MAX_VOLUME = 11;
 const MIN_VOLUME = 0;
