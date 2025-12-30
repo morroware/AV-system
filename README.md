@@ -243,7 +243,11 @@ The system uses atomic writes with file locking to prevent data corruption:
 
 ### AV Receivers/Processors
 
-The system controls Crestron-compatible AV receivers via HTTP API:
+The system is built specifically for **Just Add Power (JAP) 2G/3G series** AV over IP devices. These devices expose a proprietary HTTP REST API that this system uses for control.
+
+> **Note**: This is NOT a generic "Crestron-compatible" system. While JAP devices can integrate with Crestron control systems, this application uses JAP's proprietary API. Other AV over IP devices would require code modifications to work.
+
+**Supported JAP Models:**
 
 | Model | Volume Support | DSP Support | Features |
 |-------|---------------|-------------|----------|
@@ -255,13 +259,19 @@ The system controls Crestron-compatible AV receivers via HTTP API:
 
 **Network**: All receivers on 192.168.8.0/24
 
+**Adding Support for Other JAP Models:**
+
+To add volume control support for additional JAP models, add the model string to `VOLUME_CONTROL_MODELS` in:
+- `zone-templates/config.php` (for new zones)
+- Each zone's `config.php` (for existing zones)
+
 ### IR Transmitters (Blasters)
 
-GE Cresnet-compatible IR blasters with HTTP API:
+Just Add Power IR blasters with HTTP API:
 - Support for SENDIR format IR codes
 - Support for hex format IR codes
 - Multiple channels per transmitter (1-10)
-- Commands executed via `fluxhandlerV2.sh` script
+- Commands executed via JAP's `fluxhandlerV2.sh` script
 
 ### Input Sources
 
