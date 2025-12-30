@@ -81,7 +81,7 @@ if (!$zone || !in_array($zone, $validZones)) {
                     <?php endforeach; ?>
                 </div>
                 <p style="text-align: center; margin-top: 2rem;">
-                    <a href="/" style="color: var(--primary-color);">Back to Home</a>
+                    <a href="index.html" style="color: var(--primary-color);">Back to Home</a>
                 </p>
             </div>
         </div>

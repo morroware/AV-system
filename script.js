@@ -131,7 +131,7 @@ function setupLogoControlDoubleClick() {
                 // Check if this is a double click (two clicks within doubleClickDelay ms)
                 if (currentTime - lastClickTime < doubleClickDelay) {
                     // This is a control+double-click - redirect to home page
-                    window.location.href = '/';
+                    window.location.href = 'index.html';
                 }
                 
                 // Update the last click time
