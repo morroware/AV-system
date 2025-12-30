@@ -388,6 +388,18 @@ function showError(message) {
     }, 5000);
 }
 
+// Send a channel number by pressing each digit sequentially
+function sendChannelNumber(channelNumber) {
+    const digits = channelNumber.toString().split('');
+    const delay = 300; // 300ms between each digit press
+
+    digits.forEach((digit, index) => {
+        setTimeout(() => {
+            sendCommand(digit);
+        }, index * delay);
+    });
+}
+
 // Load favorite channels if available
 function loadFavoriteChannels() {
     fetch('favorites.ini')
@@ -424,10 +436,10 @@ function loadFavoriteChannels() {
             html += '</select>';
             container.innerHTML = html;
 
-            // Handle favorite selection
+            // Handle favorite selection - send each digit sequentially
             document.getElementById('favorites').addEventListener('change', function() {
                 if (this.value) {
-                    sendCommand(this.value);
+                    sendChannelNumber(this.value);
                     this.value = ''; // Reset selection
                 }
             });
