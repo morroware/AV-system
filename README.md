@@ -1,6 +1,6 @@
 # Castle Fun Center AV Control System
 
-A centralized, password-protected web-based audio-visual control system designed for Castle Fun Center. This system manages AV equipment across multiple entertainment zones including bowling lanes, an ice rink, arcade areas, DJ booth, and outdoor spaces. Each zone features dedicated controls for receiver management, IR remote functionality, power management, volume control, and smart lighting integration.
+A centralized, password-protected web-based audio-visual control system designed for Castle Fun Center. This system manages AV equipment across multiple entertainment zones including bowling lanes, a roller rink, arcade areas, DJ booth, and outdoor spaces. Each zone features dedicated controls for receiver management, IR remote functionality, power management, volume control, and smart lighting integration.
 
 ---
 
@@ -107,7 +107,7 @@ AV-system/
 Zone Directories:
 ├── bowling/                   # Bowling Lanes
 ├── bowlingbar/                # Bowling Bar
-├── rink/                      # Ice Rink
+├── rink/                      # Roller Rink
 ├── jesters/                   # Jesters Arcade Area
 ├── facility/                  # Facility-wide Controls
 ├── outside/                   # Outdoor Area
@@ -302,7 +302,7 @@ WLED-compatible addressable LED controllers:
 |------|-----|-----------|-------------|
 | **Bowling Lanes** | `bowling` | 4 | NeoVerse displays + Bowling Music receiver |
 | **Bowling Bar** | `bowlingbar` | 5 | Bar area with TV displays |
-| **Ice Rink** | `rink` | - | Ice rink video/audio system |
+| **Roller Rink** | `rink` | - | Roller rink video/audio system |
 | **Jesters** | `jesters` | - | Arcade and entertainment area |
 | **Facility** | `facility` | - | Facility-wide control center |
 | **Outside** | `outside` | - | Outdoor displays and audio |
