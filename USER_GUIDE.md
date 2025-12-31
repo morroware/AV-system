@@ -50,7 +50,7 @@ Zones are distinct areas of the facility, each with their own AV equipment. The 
 |------|-------------|
 | Bowling Lanes | NeoVerse displays and bowling music system |
 | Bowling Bar | Bar area TVs including billiards |
-| Ice Rink | Rink video displays and audio |
+| Roller Rink | Rink video displays and audio |
 | Jesters | Arcade area and bar TVs |
 | Facility | Facility-wide audio control |
 | Outside | Outdoor area controls |

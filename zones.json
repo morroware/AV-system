@@ -28,7 +28,7 @@
         {
             "id": "rink",
             "name": "Rink",
-            "description": "Ice rink area AV controls",
+            "description": "Roller rink area AV controls",
             "enabled": true,
             "showInNav": true,
             "icon": "rink",
