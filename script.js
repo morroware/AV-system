@@ -109,8 +109,27 @@ function init() {
     } else {
         passwordDialog.style.display = 'flex';
         container.style.display = 'none';
+
+        // LiveCode browser widget fix: Force focus on password input
+        // The widget sometimes doesn't properly capture keyboard focus
+        setTimeout(function() {
+            if (passwordInput) {
+                passwordInput.focus();
+                // Some LiveCode versions need a click to activate input
+                passwordInput.click();
+            }
+        }, 100);
+
+        // Re-focus on any click within the password dialog
+        if (passwordDialog) {
+            passwordDialog.addEventListener('click', function(e) {
+                if (e.target !== submitPassword && e.target !== togglePassword) {
+                    passwordInput.focus();
+                }
+            });
+        }
     }
-    
+
     // Set up event listeners for the logo control+double-click functionality
     setupLogoControlDoubleClick();
 }
@@ -155,6 +174,36 @@ passwordInput.addEventListener('keyup', function(event) {
         checkPassword();
     }
 });
+
+// LiveCode browser widget: Additional keyboard event handlers
+// Some versions of the widget don't fire keyup properly
+passwordInput.addEventListener('keydown', function(event) {
+    if (event.key === 'Enter' || event.keyCode === 13) {
+        event.preventDefault();
+        checkPassword();
+    }
+});
+
+// Handle input event as fallback (fires on any value change)
+passwordInput.addEventListener('input', function(event) {
+    // Ensure the input is focused and receiving events
+    this.focus();
+});
+
+// LiveCode can call this function directly to set password value
+// Usage from LiveCode: do "setPasswordValue('1234')" in widget "browser"
+window.setPasswordValue = function(value) {
+    if (passwordInput) {
+        passwordInput.value = value;
+        passwordInput.focus();
+    }
+};
+
+// LiveCode can call this to submit the password
+// Usage from LiveCode: do "submitPasswordFromLiveCode()" in widget "browser"
+window.submitPasswordFromLiveCode = function() {
+    checkPassword();
+};
 
 document.querySelectorAll('.button').forEach(button => {
     button.addEventListener('click', function(event) {

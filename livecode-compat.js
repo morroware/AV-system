@@ -316,12 +316,92 @@
         };
     }
 
+    // Keyboard input helper for LiveCode browser widget
+    // LiveCode's browser widget often doesn't pass keyboard events properly
+    var KeyboardHelper = {
+        /**
+         * Send a key to the currently focused input element
+         * Usage from LiveCode: do "LiveCodeCompat.keyboard.sendKey('a')" in widget "browser"
+         */
+        sendKey: function(key) {
+            var el = document.activeElement;
+            if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) {
+                if (key === 'Backspace') {
+                    el.value = el.value.slice(0, -1);
+                } else if (key === 'Enter') {
+                    var event = new KeyboardEvent('keydown', { key: 'Enter', keyCode: 13, bubbles: true });
+                    el.dispatchEvent(event);
+                } else if (key.length === 1) {
+                    el.value += key;
+                    // Trigger input event
+                    var inputEvent = new Event('input', { bubbles: true });
+                    el.dispatchEvent(inputEvent);
+                }
+            }
+        },
+
+        /**
+         * Set value directly on an input by ID
+         * Usage from LiveCode: do "LiveCodeCompat.keyboard.setValue('passwordInput', '1234')" in widget "browser"
+         */
+        setValue: function(elementId, value) {
+            var el = document.getElementById(elementId);
+            if (el) {
+                el.value = value;
+                el.focus();
+                // Trigger input event
+                var inputEvent = new Event('input', { bubbles: true });
+                el.dispatchEvent(inputEvent);
+            }
+        },
+
+        /**
+         * Focus an element by ID
+         * Usage from LiveCode: do "LiveCodeCompat.keyboard.focus('passwordInput')" in widget "browser"
+         */
+        focus: function(elementId) {
+            var el = document.getElementById(elementId);
+            if (el) {
+                el.focus();
+                el.click(); // Some widgets need click to activate
+            }
+        },
+
+        /**
+         * Simulate pressing Enter on an element
+         * Usage from LiveCode: do "LiveCodeCompat.keyboard.pressEnter('passwordInput')" in widget "browser"
+         */
+        pressEnter: function(elementId) {
+            var el = elementId ? document.getElementById(elementId) : document.activeElement;
+            if (el) {
+                var event = new KeyboardEvent('keydown', {
+                    key: 'Enter',
+                    keyCode: 13,
+                    which: 13,
+                    bubbles: true,
+                    cancelable: true
+                });
+                el.dispatchEvent(event);
+
+                var keyupEvent = new KeyboardEvent('keyup', {
+                    key: 'Enter',
+                    keyCode: 13,
+                    which: 13,
+                    bubbles: true,
+                    cancelable: true
+                });
+                el.dispatchEvent(keyupEvent);
+            }
+        }
+    };
+
     // Export to global scope
     window.LiveCodeCompat = {
         isLiveCode: isLiveCode,
         storage: StorageAdapter,
         bridge: LiveCodeBridge,
         fetch: FetchWrapper.fetch.bind(FetchWrapper),
+        keyboard: KeyboardHelper,
 
         // Utility to check environment
         getEnvironment: function() {
