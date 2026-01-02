@@ -114,6 +114,9 @@ function init() {
         // The widget sometimes doesn't properly capture keyboard focus
         setTimeout(function() {
             if (passwordInput) {
+                // Force document focus first
+                window.focus();
+                document.body.focus();
                 passwordInput.focus();
                 // Some LiveCode versions need a click to activate input
                 passwordInput.click();
@@ -128,11 +131,97 @@ function init() {
                 }
             });
         }
+
+        // LiveCode workaround: Create on-screen numeric keypad for password entry
+        if (window.LiveCodeCompat && window.LiveCodeCompat.isLiveCode) {
+            createOnScreenKeypad();
+        }
     }
 
     // Set up event listeners for the logo control+double-click functionality
     setupLogoControlDoubleClick();
 }
+
+// On-screen keypad for LiveCode browser widget (keyboard fallback)
+function createOnScreenKeypad() {
+    // Check if already exists
+    if (document.getElementById('lc-keypad')) return;
+
+    var keypad = document.createElement('div');
+    keypad.id = 'lc-keypad';
+    keypad.innerHTML = `
+        <style>
+            #lc-keypad {
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 8px;
+                max-width: 240px;
+                margin: 1rem auto 0;
+                padding: 1rem;
+                background: rgba(0,0,0,0.2);
+                border-radius: 12px;
+            }
+            #lc-keypad button {
+                padding: 1rem;
+                font-size: 1.25rem;
+                font-weight: 600;
+                border: 1px solid rgba(255,255,255,0.1);
+                border-radius: 8px;
+                background: rgba(99, 102, 241, 0.3);
+                color: #fff;
+                cursor: pointer;
+                transition: all 0.15s;
+            }
+            #lc-keypad button:hover {
+                background: rgba(99, 102, 241, 0.5);
+            }
+            #lc-keypad button:active {
+                transform: scale(0.95);
+            }
+            #lc-keypad .wide {
+                grid-column: span 1;
+            }
+            #lc-keypad .backspace {
+                background: rgba(239, 68, 68, 0.3);
+            }
+            #lc-keypad .enter {
+                background: rgba(34, 197, 94, 0.4);
+            }
+        </style>
+        <button type="button" onclick="keypadPress('1')">1</button>
+        <button type="button" onclick="keypadPress('2')">2</button>
+        <button type="button" onclick="keypadPress('3')">3</button>
+        <button type="button" onclick="keypadPress('4')">4</button>
+        <button type="button" onclick="keypadPress('5')">5</button>
+        <button type="button" onclick="keypadPress('6')">6</button>
+        <button type="button" onclick="keypadPress('7')">7</button>
+        <button type="button" onclick="keypadPress('8')">8</button>
+        <button type="button" onclick="keypadPress('9')">9</button>
+        <button type="button" class="backspace" onclick="keypadPress('backspace')">⌫</button>
+        <button type="button" onclick="keypadPress('0')">0</button>
+        <button type="button" class="enter" onclick="keypadPress('enter')">↵</button>
+    `;
+
+    // Insert after password form
+    var form = document.getElementById('passwordForm');
+    if (form) {
+        form.appendChild(keypad);
+    }
+}
+
+// Handle keypad button press
+window.keypadPress = function(key) {
+    if (!passwordInput) return;
+
+    if (key === 'backspace') {
+        passwordInput.value = passwordInput.value.slice(0, -1);
+    } else if (key === 'enter') {
+        checkPassword();
+    } else {
+        passwordInput.value += key;
+    }
+    passwordInput.focus();
+};
 
 // Track Control key state
 document.addEventListener('keydown', function(event) {
