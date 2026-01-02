@@ -110,32 +110,12 @@ function init() {
         passwordDialog.style.display = 'flex';
         container.style.display = 'none';
 
-        // LiveCode browser widget fix: Force focus on password input
-        // The widget sometimes doesn't properly capture keyboard focus
+        // Focus password input after a brief delay
         setTimeout(function() {
             if (passwordInput) {
-                // Force document focus first
-                window.focus();
-                document.body.focus();
                 passwordInput.focus();
-                // Some LiveCode versions need a click to activate input
-                passwordInput.click();
             }
         }, 100);
-
-        // Re-focus on any click within the password dialog
-        if (passwordDialog) {
-            passwordDialog.addEventListener('click', function(e) {
-                if (e.target !== submitPassword && e.target !== togglePassword) {
-                    passwordInput.focus();
-                }
-            });
-        }
-
-        // LiveCode workaround: Create on-screen numeric keypad for password entry
-        if (window.LiveCodeCompat && window.LiveCodeCompat.isLiveCode) {
-            createOnScreenKeypad();
-        }
     }
 
     // Set up event listeners for the logo control+double-click functionality
@@ -264,19 +244,12 @@ passwordInput.addEventListener('keyup', function(event) {
     }
 });
 
-// LiveCode browser widget: Additional keyboard event handlers
-// Some versions of the widget don't fire keyup properly
+// Also handle keydown for Enter (some browsers/widgets prefer this)
 passwordInput.addEventListener('keydown', function(event) {
     if (event.key === 'Enter' || event.keyCode === 13) {
         event.preventDefault();
         checkPassword();
     }
-});
-
-// Handle input event as fallback (fires on any value change)
-passwordInput.addEventListener('input', function(event) {
-    // Ensure the input is focused and receiving events
-    this.focus();
 });
 
 // LiveCode can call this function directly to set password value
