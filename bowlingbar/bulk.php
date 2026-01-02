@@ -95,6 +95,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SERVER['HTTP_X_REQUESTED_WI
     <title>Bulk Input Switcher - Castle AV Control System</title>
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <!-- LiveCode browser widget compatibility layer -->
+    <script src="../livecode-compat.js"></script>
     <style>
         .bulk-container {
             max-width: 1200px;

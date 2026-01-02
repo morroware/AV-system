@@ -4,9 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Castle AV Controls</title>
+    <!-- Google Fonts with fallback for LiveCode browser widget -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" onerror="this.remove()">
+    <!-- Fallback font stack defined in CSS below -->
     <style>
         *, *::before, *::after {
             box-sizing: border-box;
@@ -568,6 +570,8 @@
             <p class="help-text">Select a zone above to control AV equipment in that area.</p>
         </div>
     </div>
+    <!-- LiveCode browser widget compatibility layer -->
+    <script src="livecode-compat.js"></script>
     <script src="script.js"></script>
     <script>
         // Load zones dynamically from API with timeout protection
@@ -575,13 +579,22 @@
             const container = document.getElementById('zone-buttons');
             container.innerHTML = '<span class="loading">Loading zones...</span>';
 
-            // Create abort controller for timeout
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+            // Use LiveCode-compatible fetch if available
+            const fetchFn = (window.LiveCodeCompat && window.LiveCodeCompat.fetch) || fetch;
 
-            fetch('api/zones.php', { signal: controller.signal })
+            // Create abort controller for timeout (with fallback)
+            let controller, timeoutId;
+            try {
+                controller = new AbortController();
+                timeoutId = setTimeout(() => controller.abort(), 10000);
+            } catch (e) {
+                controller = { signal: null };
+                timeoutId = null;
+            }
+
+            fetchFn('api/zones.php', { signal: controller.signal, timeout: 10000 })
                 .then(response => {
-                    clearTimeout(timeoutId);
+                    if (timeoutId) clearTimeout(timeoutId);
                     if (!response.ok) throw new Error('Network response was not ok');
                     return response.json();
                 })
@@ -640,8 +653,8 @@
                     }
                 })
                 .catch(error => {
-                    clearTimeout(timeoutId);
-                    const isTimeout = error.name === 'AbortError';
+                    if (timeoutId) clearTimeout(timeoutId);
+                    const isTimeout = error.name === 'AbortError' || error.message === 'Request timeout';
                     console.error('Failed to load zones:', isTimeout ? 'Request timed out' : error);
                     // Show error with retry option
                     container.innerHTML = `

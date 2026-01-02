@@ -8,6 +8,13 @@ const attemptCounter = document.getElementById('attemptCounter');
 const togglePassword = document.getElementById('togglePassword');
 const logoElements = document.querySelectorAll('.logo');
 
+// Storage adapter - uses LiveCode compatibility layer if available, falls back to localStorage
+const storage = (window.LiveCodeCompat && window.LiveCodeCompat.storage) || {
+    getItem: function(key) { try { return localStorage.getItem(key); } catch(e) { return null; } },
+    setItem: function(key, value) { try { localStorage.setItem(key, value); } catch(e) {} },
+    removeItem: function(key) { try { localStorage.removeItem(key); } catch(e) {} }
+};
+
 let attemptCount = 0;
 const maxAttempts = 10;
 let isCtrlPressed = false;
@@ -76,16 +83,16 @@ function checkPassword() {
 function setAuthenticated() {
     const now = new Date();
     const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-    localStorage.setItem('authExpiration', endOfDay.getTime());
+    storage.setItem('authExpiration', endOfDay.getTime().toString());
 }
 
 function isAuthenticated() {
-    const authExpiration = localStorage.getItem('authExpiration');
+    const authExpiration = storage.getItem('authExpiration');
     if (authExpiration) {
         if (Date.now() < parseInt(authExpiration)) {
             return true;
         } else {
-            localStorage.removeItem('authExpiration');
+            storage.removeItem('authExpiration');
         }
     }
     return false;
