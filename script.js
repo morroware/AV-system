@@ -8,6 +8,13 @@ const attemptCounter = document.getElementById('attemptCounter');
 const togglePassword = document.getElementById('togglePassword');
 const logoElements = document.querySelectorAll('.logo');
 
+// Storage adapter - uses LiveCode compatibility layer if available, falls back to localStorage
+const storage = (window.LiveCodeCompat && window.LiveCodeCompat.storage) || {
+    getItem: function(key) { try { return localStorage.getItem(key); } catch(e) { return null; } },
+    setItem: function(key, value) { try { localStorage.setItem(key, value); } catch(e) {} },
+    removeItem: function(key) { try { localStorage.removeItem(key); } catch(e) {} }
+};
+
 let attemptCount = 0;
 const maxAttempts = 10;
 let isCtrlPressed = false;
@@ -76,16 +83,16 @@ function checkPassword() {
 function setAuthenticated() {
     const now = new Date();
     const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-    localStorage.setItem('authExpiration', endOfDay.getTime());
+    storage.setItem('authExpiration', endOfDay.getTime().toString());
 }
 
 function isAuthenticated() {
-    const authExpiration = localStorage.getItem('authExpiration');
+    const authExpiration = storage.getItem('authExpiration');
     if (authExpiration) {
         if (Date.now() < parseInt(authExpiration)) {
             return true;
         } else {
-            localStorage.removeItem('authExpiration');
+            storage.removeItem('authExpiration');
         }
     }
     return false;
@@ -102,11 +109,99 @@ function init() {
     } else {
         passwordDialog.style.display = 'flex';
         container.style.display = 'none';
+
+        // Focus password input after a brief delay
+        setTimeout(function() {
+            if (passwordInput) {
+                passwordInput.focus();
+            }
+        }, 100);
     }
-    
+
     // Set up event listeners for the logo control+double-click functionality
     setupLogoControlDoubleClick();
 }
+
+// On-screen keypad for LiveCode browser widget (keyboard fallback)
+function createOnScreenKeypad() {
+    // Check if already exists
+    if (document.getElementById('lc-keypad')) return;
+
+    var keypad = document.createElement('div');
+    keypad.id = 'lc-keypad';
+    keypad.innerHTML = `
+        <style>
+            #lc-keypad {
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 8px;
+                max-width: 240px;
+                margin: 1rem auto 0;
+                padding: 1rem;
+                background: rgba(0,0,0,0.2);
+                border-radius: 12px;
+            }
+            #lc-keypad button {
+                padding: 1rem;
+                font-size: 1.25rem;
+                font-weight: 600;
+                border: 1px solid rgba(255,255,255,0.1);
+                border-radius: 8px;
+                background: rgba(99, 102, 241, 0.3);
+                color: #fff;
+                cursor: pointer;
+                transition: all 0.15s;
+            }
+            #lc-keypad button:hover {
+                background: rgba(99, 102, 241, 0.5);
+            }
+            #lc-keypad button:active {
+                transform: scale(0.95);
+            }
+            #lc-keypad .wide {
+                grid-column: span 1;
+            }
+            #lc-keypad .backspace {
+                background: rgba(239, 68, 68, 0.3);
+            }
+            #lc-keypad .enter {
+                background: rgba(34, 197, 94, 0.4);
+            }
+        </style>
+        <button type="button" onclick="keypadPress('1')">1</button>
+        <button type="button" onclick="keypadPress('2')">2</button>
+        <button type="button" onclick="keypadPress('3')">3</button>
+        <button type="button" onclick="keypadPress('4')">4</button>
+        <button type="button" onclick="keypadPress('5')">5</button>
+        <button type="button" onclick="keypadPress('6')">6</button>
+        <button type="button" onclick="keypadPress('7')">7</button>
+        <button type="button" onclick="keypadPress('8')">8</button>
+        <button type="button" onclick="keypadPress('9')">9</button>
+        <button type="button" class="backspace" onclick="keypadPress('backspace')">⌫</button>
+        <button type="button" onclick="keypadPress('0')">0</button>
+        <button type="button" class="enter" onclick="keypadPress('enter')">↵</button>
+    `;
+
+    // Insert after password form
+    var form = document.getElementById('passwordForm');
+    if (form) {
+        form.appendChild(keypad);
+    }
+}
+
+// Handle keypad button press
+window.keypadPress = function(key) {
+    if (!passwordInput) return;
+
+    if (key === 'backspace') {
+        passwordInput.value = passwordInput.value.slice(0, -1);
+    } else if (key === 'enter') {
+        checkPassword();
+    } else {
+        passwordInput.value += key;
+    }
+    passwordInput.focus();
+};
 
 // Track Control key state
 document.addEventListener('keydown', function(event) {
@@ -148,6 +243,29 @@ passwordInput.addEventListener('keyup', function(event) {
         checkPassword();
     }
 });
+
+// Also handle keydown for Enter (some browsers/widgets prefer this)
+passwordInput.addEventListener('keydown', function(event) {
+    if (event.key === 'Enter' || event.keyCode === 13) {
+        event.preventDefault();
+        checkPassword();
+    }
+});
+
+// LiveCode can call this function directly to set password value
+// Usage from LiveCode: do "setPasswordValue('1234')" in widget "browser"
+window.setPasswordValue = function(value) {
+    if (passwordInput) {
+        passwordInput.value = value;
+        passwordInput.focus();
+    }
+};
+
+// LiveCode can call this to submit the password
+// Usage from LiveCode: do "submitPasswordFromLiveCode()" in widget "browser"
+window.submitPasswordFromLiveCode = function() {
+    checkPassword();
+};
 
 document.querySelectorAll('.button').forEach(button => {
     button.addEventListener('click', function(event) {

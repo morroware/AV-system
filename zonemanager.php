@@ -171,6 +171,8 @@ $settings = $config['settings'] ?? [];
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Zone Manager - Castle AV Controls</title>
     <link rel="stylesheet" href="shared/styles.css">
+    <!-- LiveCode browser widget compatibility layer -->
+    <script src="livecode-compat.js"></script>
 </head>
 <body>
     <div class="content-wrapper">
@@ -698,6 +700,9 @@ $settings = $config['settings'] ?? [];
     </div>
 
     <script>
+        // Use LiveCode-compatible fetch if available
+        const compatFetch = (window.LiveCodeCompat && window.LiveCodeCompat.fetch) || window.fetch.bind(window);
+
         // Zone data from PHP
         const zonesData = <?php echo json_encode($zones); ?>;
         const quickLinksData = <?php echo json_encode($quickLinks); ?>;
@@ -815,7 +820,7 @@ $settings = $config['settings'] ?? [];
             formData.append('action', 'add');
 
             try {
-                const response = await fetch('', {
+                const response = await compatFetch('', {
                     method: 'POST',
                     body: formData
                 });
@@ -840,7 +845,7 @@ $settings = $config['settings'] ?? [];
             formData.append('action', 'update');
 
             try {
-                const response = await fetch('', {
+                const response = await compatFetch('', {
                     method: 'POST',
                     body: formData
                 });
@@ -865,7 +870,7 @@ $settings = $config['settings'] ?? [];
             formData.append('action', 'duplicate');
 
             try {
-                const response = await fetch('', {
+                const response = await compatFetch('', {
                     method: 'POST',
                     body: formData
                 });
@@ -890,7 +895,7 @@ $settings = $config['settings'] ?? [];
             formData.append('action', 'delete');
 
             try {
-                const response = await fetch('', {
+                const response = await compatFetch('', {
                     method: 'POST',
                     body: formData
                 });
@@ -961,7 +966,7 @@ $settings = $config['settings'] ?? [];
             formData.append('order', JSON.stringify(order));
 
             try {
-                const response = await fetch('', {
+                const response = await compatFetch('', {
                     method: 'POST',
                     body: formData
                 });
@@ -1051,7 +1056,7 @@ $settings = $config['settings'] ?? [];
             formData.append('action', 'addQuickLink');
 
             try {
-                const response = await fetch('', {
+                const response = await compatFetch('', {
                     method: 'POST',
                     body: formData
                 });
@@ -1076,7 +1081,7 @@ $settings = $config['settings'] ?? [];
             formData.append('action', 'updateQuickLink');
 
             try {
-                const response = await fetch('', {
+                const response = await compatFetch('', {
                     method: 'POST',
                     body: formData
                 });
@@ -1101,7 +1106,7 @@ $settings = $config['settings'] ?? [];
             formData.append('action', 'deleteQuickLink');
 
             try {
-                const response = await fetch('', {
+                const response = await compatFetch('', {
                     method: 'POST',
                     body: formData
                 });
@@ -1175,7 +1180,7 @@ $settings = $config['settings'] ?? [];
             formData.append('order', JSON.stringify(order));
 
             try {
-                const response = await fetch('', {
+                const response = await compatFetch('', {
                     method: 'POST',
                     body: formData
                 });

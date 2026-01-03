@@ -240,6 +240,8 @@ usort($devices['transmitters'], function($a, $b) {
     <title>Device Management - Multi Zone</title>
     <link rel="stylesheet" href="../shared/styles.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <!-- LiveCode browser widget compatibility layer -->
+    <script src="../livecode-compat.js"></script>
     <style>
         .device-management {
             max-width: 1400px;

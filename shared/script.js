@@ -1,7 +1,11 @@
 /**
  * Combined JavaScript for AV Controls and Remote Control System
  * Enhanced with loading states, better feedback, and accessibility
+ * Compatible with LiveCode browser widget
  */
+
+// Use LiveCode-compatible fetch if available
+const compatFetch = (window.LiveCodeCompat && window.LiveCodeCompat.fetch) || window.fetch.bind(window);
 
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize both systems
@@ -240,7 +244,7 @@ function sendWledCommand(zone, action, buttonElement) {
     formData.append('zone', zone);
     formData.append('action', action);
 
-    fetch('../wled.php', {
+    compatFetch('../wled.php', {
         method: 'POST',
         body: formData
     })
@@ -317,7 +321,7 @@ function showResponseMessage(message, success) {
 
 // Remote Control Functions
 function loadTransmitters() {
-    fetch('transmitters.txt')
+    compatFetch('transmitters.txt')
         .then(response => response.text())
         .then(data => {
             const transmitters = data.split('\n').filter(line => line.trim() !== '');
@@ -402,7 +406,7 @@ function sendChannelNumber(channelNumber) {
 
 // Load favorite channels if available
 function loadFavoriteChannels() {
-    fetch('favorites.ini')
+    compatFetch('favorites.ini')
         .then(response => {
             if (!response.ok) return null;
             return response.text();
@@ -483,7 +487,7 @@ function loadReceiverStatus(receiverElement, ip, transmitters) {
     if (!contentDiv) return;
 
     // Fetch status from API
-    fetch(`../api/receiver-status.php?ip=${encodeURIComponent(ip)}`)
+    compatFetch(`../api/receiver-status.php?ip=${encodeURIComponent(ip)}`)
         .then(response => response.json())
         .then(data => {
             receiverElement.classList.remove('receiver-loading');
