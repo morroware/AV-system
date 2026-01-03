@@ -395,7 +395,7 @@ function showError(message) {
 // Send a channel number by pressing each digit sequentially
 function sendChannelNumber(channelNumber) {
     const digits = channelNumber.toString().split('');
-    const delay = 300; // 300ms between each digit press
+    const delay = 1000; // 1000ms between each digit press (cable boxes need time to register each digit)
 
     digits.forEach((digit, index) => {
         setTimeout(() => {
